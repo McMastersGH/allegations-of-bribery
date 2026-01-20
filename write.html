@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Write — Allegations of Bribery</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <img src="./assets/LadyJusticeBribed.png" alt="logo" class="logo" />
+      <div>
+        <h1>Allegations of Bribery</h1>
+        <p class="muted">Authoring</p>
+      </div>
+    </div>
+    <nav class="nav">
+      <a class="btn ghost" href="./index.html">Home</a>
+      <a class="btn ghost" href="./login.html" id="loginLink">Login</a>
+      <button class="btn" id="logoutBtn" style="display:none;">Logout</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Create Post</h2>
+      <p class="muted" id="statusMsg"></p>
+
+      <label class="label">Title</label>
+      <input id="title" class="input" placeholder="Post title..." />
+
+      <label class="label">Content (paste text here)</label>
+      <textarea id="content" class="textarea" rows="10" placeholder="Paste your text..."></textarea>
+
+      <label class="label">Attachments (PDF/DOC/DOCX/TXT/Images)</label>
+      <input id="files" class="input" type="file" multiple />
+
+      <div class="row gap">
+        <button id="publishBtn" class="btn">Publish</button>
+        <button id="saveDraftBtn" class="btn ghost">Save Draft</button>
+      </div>
+
+      <p class="muted">
+        Publishing requires an approved author account. If you are not approved, you will be blocked.
+      </p>
+    </section>
+  </main>
+
+  <script type="module">
+  import * as pdfjsLib from "./js/vendor/pdfjs/pdf.min.mjs";
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "./js/vendor/pdfjs/pdf.worker.min.mjs";
+  window.pdfjsLib = pdfjsLib;
+  </script>
+
+  <script type="module" src="./js/write.js"></script>
+</body>
+</html>
