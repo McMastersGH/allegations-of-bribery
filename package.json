@@ -1,0 +1,15 @@
+{
+  "name": "allegationofbribery",
+  "version": "1.0.0",
+  "description": "<!doctype html>\r <html lang=\"en\">\r <head>\r   <meta charset=\"utf-8\" />\r   <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />\r   <title>Allegations of Bribery</title>\r   <link rel=\"stylesheet\" href=\"css/styles.css\" />\r </head>\r <body>\r   <header class=\"site-header\">\r     <div class=\"container header-row\">\r       <div>\r         <h1 class=\"site-title\">Allegations of Bribery</h1>\r         <div class=\"site-subtitle\">Public read. Approved authors only.</div>\r       </div>",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "pdfjs-dist": "^5.4.530"
+  }
+}

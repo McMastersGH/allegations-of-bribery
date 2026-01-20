@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <link rel="icon" href="./favicon.ico">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Post — Allegations of Bribery</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <img src="./assets/LadyJusticeBribed.png" alt="logo" class="logo" />
+      <div>
+        <h1>Allegations of Bribery</h1>
+        <p class="muted">Post</p>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a class="btn ghost" href="./index.html">Home</a>
+      <a class="btn ghost" href="./write.html">Write</a>
+      <a class="btn ghost" href="./login.html" id="loginLink">Login</a>
+      <button class="btn" id="logoutBtn" style="display:none;">Logout</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <article class="card">
+      <h2 id="postTitle"></h2>
+      <p class="muted" id="postMeta"></p>
+      <div class="divider"></div>
+
+      <div id="postContent" class="prose"></div>
+
+      <div class="divider"></div>
+      <h3>Attachments</h3>
+      <div id="attachments" class="list"></div>
+    </article>
+
+    <section class="card">
+      <h3>Comments</h3>
+      <div id="comments" class="list"></div>
+
+      <div class="divider"></div>
+      <p class="muted" id="commentGate"></p>
+
+      <label class="label">Add a comment</label>
+      <textarea id="commentText" class="textarea" rows="3" placeholder="Write a comment..."></textarea>
+
+      <div class="row gap">
+        <button id="commentBtn" class="btn">Post Comment</button>
+      </div>
+
+      <p id="commentMsg" class="muted"></p>
+    </section>
+  </main>
+
+  <script type="module" src="./js/post.js"></script>
+</body>
+</html>

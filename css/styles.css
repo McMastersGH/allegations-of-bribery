@@ -1,0 +1,112 @@
+:root{
+  --bg:#0b0f14;
+  --panel:#121825;
+  --panel2:#0f1520;
+  --text:#e8eef7;
+  --muted:#a8b3c7;
+  --line:#243047;
+  --accent:#3b82f6;
+  --danger:#ef4444;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.container{max-width:1100px;margin:0 auto;padding:18px}
+.nav{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:14px;padding:14px 18px;border-bottom:1px solid var(--line);
+  position:sticky;top:0;background:rgba(11,15,20,.92);backdrop-filter: blur(8px);
+}
+.brand{display:flex;align-items:center;gap:10px}
+.brand img{width:38px;height:38px;object-fit:contain}
+.brand .title{font-weight:700;letter-spacing:.2px}
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{
+  border:1px solid var(--line);background:var(--panel);
+  color:var(--text);padding:9px 12px;border-radius:10px;cursor:pointer;
+}
+.btn.primary{background:var(--accent);border-color:transparent;color:white}
+.btn.danger{background:transparent;border-color:rgba(239,68,68,.45);color:#fecaca}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.card{
+  background:linear-gradient(180deg,var(--panel),var(--panel2));
+  border:1px solid var(--line);border-radius:16px;padding:16px;
+}
+.grid{display:grid;gap:14px}
+.grid.cols2{grid-template-columns: 1.1fr .9fr}
+@media (max-width: 900px){.grid.cols2{grid-template-columns:1fr}}
+.input, textarea{
+  width:100%;padding:10px 12px;border-radius:10px;
+  border:1px solid var(--line);background:#0b1220;color:var(--text);
+  outline:none;
+}
+@media (max-width: 768px) {
+  body {
+    background-position: center top;
+    background-size: 70vw auto;
+  }
+}
+
+label{display:block;margin:10px 0 6px;color:var(--muted);font-size:13px}
+.small{color:var(--muted);font-size:13px;line-height:1.35}
+.h1{font-size:28px;margin:10px 0 6px}
+.h2{font-size:18px;margin:8px 0 6px}
+.hr{height:1px;background:var(--line);margin:14px 0}
+.postList{display:grid;gap:12px}
+.postItem{padding:14px;border-radius:14px;border:1px solid var(--line);background:rgba(18,24,37,.55)}
+.postItem .meta{color:var(--muted);font-size:13px;margin-top:6px}
+.tag{display:inline-block;border:1px solid var(--line);padding:4px 8px;border-radius:999px;color:var(--muted);font-size:12px}
+.error{color:#fecaca;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.35);padding:10px 12px;border-radius:12px}
+.ok{color:#bbf7d0;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);padding:10px 12px;border-radius:12px}
+.fileRow{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px;background:rgba(18,24,37,.35)}
+.fileRow a{word-break:break-all}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+
+  /* Base site background */
+  background-color: #0b0f1a;
+
+  /* Image layer */
+  background-image: url("../assets/ladyjusticebribed.png");
+  background-repeat: no-repeat;
+
+  /* Position: center vertically, right horizontally */
+  background-position: right center;
+
+  /* Resize image */
+  background-size: 40vw auto;
+}
+
+
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: -1;
+}
+
+
+/* Legal pages + consent UI */
+.legal h1 { margin-top: 0; }
+.legal h2 { margin-top: 20px; }
+.legal h3 { margin-top: 16px; }
+.legal blockquote {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-left: 3px solid rgba(255,255,255,.22);
+  background: rgba(255,255,255,.04);
+  color: rgba(255,255,255,.92);
+}
+
+.legal-consent { margin: 14px 0 10px; padding: 12px; border: 1px solid rgba(255,255,255,.10); border-radius: 12px; background: rgba(255,255,255,.03); }
+.checkrow { display: flex; align-items: flex-start; gap: 10px; margin: 10px 0; cursor: pointer; user-select: none; }
+.checkrow input { margin-top: 3px; }
+.small { font-size: .92rem; }
+
+.btn.disabled, .btn:disabled { opacity: .55; cursor: not-allowed; }

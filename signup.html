@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <link rel="icon" href="./favicon.ico">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sign up — Allegations of Bribery</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <img src="./assets/LadyJusticeBribed.png" alt="logo" class="logo" />
+      <div>
+        <h1>Allegations of Bribery</h1>
+        <p class="muted">Create account</p>
+      </div>
+    </div>
+    <nav class="nav">
+      <a class="btn ghost" href="./index.html">Home</a>
+      <a class="btn ghost" href="./login.html">Login</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="card narrow">
+      <h2>Sign up</h2>
+
+      <label class="label">Display name</label>
+      <input id="displayName" class="input" type="text" placeholder="Dwight M." />
+
+      <label class="label">Email</label>
+      <input id="email" class="input" type="email" autocomplete="email" placeholder="you@example.com" />
+
+      <label class="label">Password</label>
+      <input id="password" class="input" type="password" autocomplete="new-password" placeholder="••••••••" />
+      <div class="legal-consent">
+        <label class="checkrow">
+          <input id="agreeTerms" type="checkbox" />
+          <span>I agree to the <a href="./terms.html" target="_blank" rel="noopener">Legal Disclaimer and Terms of Use</a>.</span>
+        </label>
+        <label class="checkrow">
+          <input id="agreePrivacy" type="checkbox" />
+          <span>I have read the <a href="./privacy.html" target="_blank" rel="noopener">Privacy Statement</a>.</span>
+        </label>
+        <p class="muted small">
+          You must check both boxes before you can create an account.
+        </p>
+      </div>
+
+
+      <div class="row gap">
+        <button id="signupBtn" class="btn">Create account</button>
+        <a class="btn ghost" href="./login.html">Already have an account</a>
+      </div>
+
+      <p class="muted">
+        Note: New accounts are not approved to publish until you mark them approved in Supabase.
+      </p>
+
+      <p id="msg" class="muted"></p>
+    </section>
+  </main>
+
+  <script type="module">
+    import { signUp } from "./js/auth.js";
+
+    const displayName = document.getElementById("displayName");
+    const email = document.getElementById("email");
+    const password = document.getElementById("password");
+    const msg = document.getElementById("msg");
+
+    
+
+    const agreeTerms = document.getElementById("agreeTerms");
+    const agreePrivacy = document.getElementById("agreePrivacy");
+    const signupBtn = document.getElementById("signupBtn");
+
+    function syncConsentState() {
+      const ok = agreeTerms.checked && agreePrivacy.checked;
+      signupBtn.disabled = !ok;
+      signupBtn.classList.toggle("disabled", !ok);
+    }
+
+    agreeTerms.addEventListener("change", syncConsentState);
+    agreePrivacy.addEventListener("change", syncConsentState);
+    syncConsentState();
+
+document.getElementById("signupBtn").addEventListener("click", async () => {
+      msg.textContent = "Creating account...";
+      if (!(agreeTerms.checked && agreePrivacy.checked)) { msg.textContent = "You must agree to the Terms and Privacy Statement before creating an account."; return; }
+      const res = await signUp(email.value.trim(), password.value, displayName.value.trim(), { termsAccepted: true, privacyAccepted: true });
+      if (!res.ok) {
+        msg.textContent = res.error;
+        return;
+      }
+      msg.textContent = "Account created. Check your email if confirmation is enabled, then log in.";
+      setTimeout(() => (window.location.href = "./login.html"), 1200);
+    });
+  </script>
+</body>
+</html>
