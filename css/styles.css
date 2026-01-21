@@ -210,3 +210,12 @@ body::before {
   font-size: 0.9rem;
   line-height: 1.4;
 }
+/* Right-side widget image sizing fix */
+.logo {
+  width: 100%;
+  max-width: 560px;   /* matches widget width */
+  height: 320px;      /* matches widget height */
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+}
