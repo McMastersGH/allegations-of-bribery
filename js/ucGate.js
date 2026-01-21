@@ -1,6 +1,4 @@
 // js/ucGate.js
-console.error("ucGate.js loaded");
-
 (function () {
   const KEY = "aob_uc_gate_dismissed_v1";
 
@@ -14,22 +12,32 @@ console.error("ucGate.js loaded");
     if (gate) gate.style.display = "flex";
   }
 
-  // If they already continued before, do not block them again
-  try {
-    const dismissed = localStorage.getItem(KEY) === "1";
-    if (dismissed) hideGate();
-    else showGate();
-  } catch {
-    // If localStorage is blocked, default to showing the gate
-    showGate();
-  }
+  function init() {
+    try {
+      const dismissed = localStorage.getItem(KEY) === "1";
+      if (dismissed) hideGate();
+      else showGate();
+    } catch {
+      showGate();
+    }
 
-  // Wire the continue button
-  const btn = document.getElementById("ucContinueBtn");
-  if (btn) {
+    const btn = document.getElementById("ucContinueBtn");
+    if (!btn) {
+      console.error("ucGate: Continue button not found");
+      return;
+    }
+
     btn.addEventListener("click", () => {
       try { localStorage.setItem(KEY, "1"); } catch {}
       hideGate();
     });
   }
+
+  // Ensure DOM exists before wiring
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
 })();
+
