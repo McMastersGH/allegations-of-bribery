@@ -1,314 +1,49 @@
-<!-- index.html (Tailwind CDN version) -->
 <!doctype html>
 <html lang="en">
 <head>
+  <link rel="icon" href="./favicon.ico">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Allegations of Bribery | Forums</title>
-
-  <!-- Tailwind CDN (fastest path for GitHub Pages) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Optional: set a consistent dark palette via Tailwind config -->
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            panel: "#111827",     // slate-900-ish
-            panel2: "#0b0e13",    // deeper panel
-            stroke: "#1f2933",    // subtle border
-            page: "#0f1216"       // page background
-          }
-        }
-      }
-    }
-  </script>
+  <title>Allegations of Bribery</title>
+  <link rel="stylesheet" href="./css/styles.css" />
 </head>
-
-<body class="bg-page text-slate-200 antialiased">
-  <!-- Top Bar -->
-  <header class="sticky top-0 z-50 border-b border-stroke bg-panel/95 backdrop-blur">
-    <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-      <div class="flex items-center gap-3">
-        <div class="h-8 w-8 rounded bg-slate-700"></div>
-        <div class="text-lg font-semibold tracking-tight">Allegations of Bribery</div>
-      </div>
-
-      <nav class="hidden items-center gap-5 text-sm text-slate-300 md:flex">
-        <a class="hover:text-white" href="#">Forums</a>
-        <a class="hover:text-white" href="#">Documents</a>
-        <a class="hover:text-white" href="#">Cases</a>
-        <a class="hover:text-white" href="#">What’s new</a>
-      </nav>
-
-      <div class="flex items-center gap-2">
-        <a class="rounded-md px-3 py-1.5 text-sm text-slate-300 hover:text-white" href="#">Log in</a>
-        <a class="rounded-md bg-slate-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-600" href="#">Register</a>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <img src="./assets/LadyJusticeBribed.png" alt="Allegations of Bribery logo" class="logo" />
+      <div>
+        <h1>Allegations of Bribery</h1>
+        <p class="muted">Public read. Approved authors only.</p>
       </div>
     </div>
+
+    <nav class="nav">
+      <a class="btn ghost" href="./index.html">Home</a>
+      <a class="btn ghost" href="./write.html">Write</a>
+      <a class="btn ghost" href="./login.html" id="loginLink">Login</a>
+      <button class="btn" id="logoutBtn" style="display:none;">Logout</button>
+    </nav>
   </header>
 
-  <!-- Main Layout -->
-  <main class="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-6 lg:grid-cols-[240px,1fr,200px]">
-    <!-- Left Sidebar -->
-    <aside class="space-y-3">
-      <div class="rounded-lg border border-stroke bg-panel p-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Topics</h2>
-          <button class="text-xs text-slate-400 hover:text-slate-200 lg:hidden" type="button">
-            Collapse
-          </button>
-        </div>
-
-        <ul class="mt-3 space-y-1 text-sm">
-          <li>
-            <a class="flex items-center gap-2 rounded-md px-2 py-2 hover:bg-slate-800" href="#">
-              <span class="h-2 w-2 rounded-full bg-sky-400"></span>
-              Bribery Allegations
-            </a>
-          </li>
-          <li>
-            <a class="flex items-center gap-2 rounded-md px-2 py-2 hover:bg-slate-800" href="#">
-              <span class="h-2 w-2 rounded-full bg-rose-400"></span>
-              Judicial Misconduct
-            </a>
-          </li>
-          <li>
-            <a class="flex items-center gap-2 rounded-md px-2 py-2 hover:bg-slate-800" href="#">
-              <span class="h-2 w-2 rounded-full bg-amber-400"></span>
-              Political Corruption
-            </a>
-          </li>
-          <li>
-            <a class="flex items-center gap-2 rounded-md px-2 py-2 hover:bg-slate-800" href="#">
-              <span class="h-2 w-2 rounded-full bg-lime-400"></span>
-              Union Matters
-            </a>
-          </li>
-          <li>
-            <a class="flex items-center gap-2 rounded-md px-2 py-2 hover:bg-slate-800" href="#">
-              <span class="h-2 w-2 rounded-full bg-violet-400"></span>
-              Public Records
-            </a>
-          </li>
-        </ul>
-      </div>
-
-      <div class="rounded-lg border border-stroke bg-panel p-4">
-        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Quick Links</h3>
-        <div class="mt-3 space-y-2 text-sm">
-          <a class="block rounded-md px-2 py-2 text-slate-300 hover:bg-slate-800 hover:text-white" href="#">New posts</a>
-          <a class="block rounded-md px-2 py-2 text-slate-300 hover:bg-slate-800 hover:text-white" href="#">Unanswered</a>
-          <a class="block rounded-md px-2 py-2 text-slate-300 hover:bg-slate-800 hover:text-white" href="#">Your threads</a>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Center Content -->
-    <section class="space-y-5">
-      <!-- Page Header -->
-      <div class="rounded-lg border border-stroke bg-panel p-5">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-xl font-semibold">Forums</h1>
-            <p class="mt-1 text-sm text-slate-400">
-              Read public content. Posting is limited to approved authors.
-            </p>
-          </div>
-          <a class="text-sm text-sky-300 hover:text-sky-200" href="#">New posts</a>
+  <main class="container">
+    <section class="card">
+      <div class="card-header">
+        <h2>Latest Posts</h2>
+        <div class="row gap">
+          <input id="searchInput" class="input" placeholder="Search title/content..." />
+          <button id="refreshBtn" class="btn">Refresh</button>
         </div>
       </div>
 
-      <!-- Section: General Discussion -->
-      <div class="rounded-lg border border-stroke bg-panel2 p-5">
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-slate-200">General Discussion</h2>
-          <a class="text-sm text-slate-400 hover:text-slate-200" href="#">View all</a>
-        </div>
-
-        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <!-- Card -->
-          <a href="forum.html?forum=general-topics"
-             class="group rounded-lg border border-stroke bg-panel p-4 transition hover:bg-slate-800">
-            <div class="flex items-start gap-3">
-              <div class="mt-1 flex h-9 w-9 items-center justify-center rounded-md bg-slate-700 text-slate-200">
-                <!-- icon placeholder -->
-                <span class="text-xs font-bold">GT</span>
-              </div>
-              <div class="min-w-0">
-                <div class="flex items-center justify-between gap-3">
-                  <h3 class="truncate text-sm font-semibold group-hover:text-white">General Topics</h3>
-                  <span class="shrink-0 text-xs text-slate-500">View</span>
-                </div>
-                <p class="mt-1 line-clamp-2 text-xs text-slate-400">
-                  Open discussion of allegations, investigations, and site updates.
-                </p>
-                <div class="mt-3 flex items-center gap-4 text-xs text-slate-500">
-                  <span>Posts: 0</span>
-                  <span>Threads: 0</span>
-                </div>
-              </div>
-            </div>
-          </a>
-
-          <!-- Card -->
-          <a href="forum.html?forum=introductions"
-             class="group rounded-lg border border-stroke bg-panel p-4 transition hover:bg-slate-800">
-            <div class="flex items-start gap-3">
-              <div class="mt-1 flex h-9 w-9 items-center justify-center rounded-md bg-slate-700 text-slate-200">
-                <span class="text-xs font-bold">IN</span>
-              </div>
-              <div class="min-w-0">
-                <div class="flex items-center justify-between gap-3">
-                  <h3 class="truncate text-sm font-semibold group-hover:text-white">Introductions</h3>
-                  <span class="shrink-0 text-xs text-slate-500">View</span>
-                </div>
-                <p class="mt-1 line-clamp-2 text-xs text-slate-400">
-                  Introduce yourself and describe what you are researching.
-                </p>
-                <div class="mt-3 flex items-center gap-4 text-xs text-slate-500">
-                  <span>Posts: 0</span>
-                  <span>Threads: 0</span>
-                </div>
-              </div>
-            </div>
-          </a>
-
-          <!-- Card -->
-          <a href="forum.html?forum=questions-and-answers"
-             class="group rounded-lg border border-stroke bg-panel p-4 transition hover:bg-slate-800">
-            <div class="flex items-start gap-3">
-              <div class="mt-1 flex h-9 w-9 items-center justify-center rounded-md bg-slate-700 text-slate-200">
-                <span class="text-xs font-bold">QA</span>
-              </div>
-              <div class="min-w-0">
-                <div class="flex items-center justify-between gap-3">
-                  <h3 class="truncate text-sm font-semibold group-hover:text-white">Questions & Answers</h3>
-                  <span class="shrink-0 text-xs text-slate-500">View</span>
-                </div>
-                <p class="mt-1 line-clamp-2 text-xs text-slate-400">
-                  Ask for clarification, document analysis, and procedural guidance.
-                </p>
-                <div class="mt-3 flex items-center gap-4 text-xs text-slate-500">
-                  <span>Posts: 0</span>
-                  <span>Threads: 0</span>
-                </div>
-              </div>
-            </div>
-          </a>
-
-          <!-- Card -->
-          <a href="forum.html?forum=off-topic"
-             class="group rounded-lg border border-stroke bg-panel p-4 transition hover:bg-slate-800">
-            <div class="flex items-start gap-3">
-              <div class="mt-1 flex h-9 w-9 items-center justify-center rounded-md bg-slate-700 text-slate-200">
-                <span class="text-xs font-bold">OT</span>
-              </div>
-              <div class="min-w-0">
-                <div class="flex items-center justify-between gap-3">
-                  <h3 class="truncate text-sm font-semibold group-hover:text-white">Off-topic</h3>
-                  <span class="shrink-0 text-xs text-slate-500">View</span>
-                </div>
-                <p class="mt-1 line-clamp-2 text-xs text-slate-400">
-                  Anything not directly related to cases, filings, or records.
-                </p>
-                <div class="mt-3 flex items-center gap-4 text-xs text-slate-500">
-                  <span>Posts: 0</span>
-                  <span>Threads: 0</span>
-                </div>
-              </div>
-            </div>
-          </a>
-        </div>
-      </div>
-
-      <!-- Section: Investigations -->
-      <div class="rounded-lg border border-stroke bg-panel2 p-5">
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-slate-200">Investigations</h2>
-          <a class="text-sm text-slate-400 hover:text-slate-200" href="#">View all</a>
-        </div>
-
-        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <a href="#" class="group rounded-lg border border-stroke bg-panel p-4 transition hover:bg-slate-800">
-            <div class="flex items-start gap-3">
-              <div class="mt-1 flex h-9 w-9 items-center justify-center rounded-md bg-slate-700 text-slate-200">
-                <span class="text-xs font-bold">JM</span>
-              </div>
-              <div class="min-w-0">
-                <div class="flex items-center justify-between gap-3">
-                  <h3 class="truncate text-sm font-semibold group-hover:text-white">Judicial Misconduct</h3>
-                  <span class="shrink-0 text-xs text-slate-500">View</span>
-                </div>
-                <p class="mt-1 line-clamp-2 text-xs text-slate-400">
-                  Case tracking, timelines, and sourced documentation for court conduct.
-                </p>
-                <div class="mt-3 flex items-center gap-4 text-xs text-slate-500">
-                  <span>Posts: 0</span>
-                  <span>Threads: 0</span>
-                </div>
-              </div>
-            </div>
-          </a>
-
-          <a href="#" class="group rounded-lg border border-stroke bg-panel p-4 transition hover:bg-slate-800">
-            <div class="flex items-start gap-3">
-              <div class="mt-1 flex h-9 w-9 items-center justify-center rounded-md bg-slate-700 text-slate-200">
-                <span class="text-xs font-bold">PR</span>
-              </div>
-              <div class="min-w-0">
-                <div class="flex items-center justify-between gap-3">
-                  <h3 class="truncate text-sm font-semibold group-hover:text-white">Public Records</h3>
-                  <span class="shrink-0 text-xs text-slate-500">View</span>
-                </div>
-                <p class="mt-1 line-clamp-2 text-xs text-slate-400">
-                  Requests, responses, and document dumps organized by agency and date.
-                </p>
-                <div class="mt-3 flex items-center gap-4 text-xs text-slate-500">
-                  <span>Posts: 0</span>
-                  <span>Threads: 0</span>
-                </div>
-              </div>
-            </div>
-          </a>
-        </div>
-      </div>
-
-      <!-- Footer -->
-      <footer class="py-4 text-xs text-slate-500">
-        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <span>© <span id="y"></span> Allegations of Bribery</span>
-          <div class="flex gap-4">
-            <a class="hover:text-slate-300" href="#">Terms</a>
-            <a class="hover:text-slate-300" href="#">Privacy</a>
-            <a class="hover:text-slate-300" href="#">Security</a>
-          </div>
-        </div>
-      </footer>
+      <div id="postsList" class="list"></div>
+      <div id="emptyState" class="muted" style="display:none;">No published posts yet.</div>
     </section>
-
-    <!-- Right Column (optional ad / widgets like XDA) -->
-    <aside class="hidden lg:block">
-      <div class="sticky top-20 space-y-4">
-        <div class="rounded-lg border border-stroke bg-panel p-4">
-          <div class="text-xs font-semibold uppercase tracking-wider text-slate-400">Sidebar</div>
-          <div class="mt-2 text-sm text-slate-300">
-            Reserved for notices, highlights, or sponsorship blocks.
-          </div>
-        </div>
-
-        <div class="rounded-lg border border-stroke bg-panel p-4">
-          <div class="flex h-40 items-center justify-center rounded-md border border-dashed border-slate-700 text-sm text-slate-500">
-            Ad / Widget Placeholder
-          </div>
-        </div>
-      </div>
-    </aside>
   </main>
 
-  <script>
-    document.getElementById("y").textContent = new Date().getFullYear();
-  </script>
+  <footer class="site-footer">
+    <small class="muted">© <span id="year"></span> Allegations of Bribery</small>
+  </footer>
+
+  <script type="module" src="./js/index.js"></script>
 </body>
 </html>
