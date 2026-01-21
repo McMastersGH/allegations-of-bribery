@@ -90,3 +90,24 @@ body::before {
   background: rgba(0, 0, 0, 0.55);
   z-index: -1;
 }
+
+
+/* Legal pages + consent UI */
+.legal h1 { margin-top: 0; }
+.legal h2 { margin-top: 20px; }
+.legal h3 { margin-top: 16px; }
+.legal blockquote {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-left: 3px solid rgba(255,255,255,.22);
+  background: rgba(255,255,255,.04);
+  color: rgba(255,255,255,.92);
+}
+
+.legal-consent { margin: 14px 0 10px; padding: 12px; border: 1px solid rgba(255,255,255,.10); border-radius: 12px; background: rgba(255,255,255,.03); }
+.checkrow { display: flex; align-items: flex-start; gap: 10px; margin: 10px 0; cursor: pointer; user-select: none; }
+.checkrow input { margin-top: 3px; }
+.small { font-size: .92rem; }
+
+.btn.disabled, .btn:disabled { opacity: .55; cursor: not-allowed; }
+/*<!--testing vsc git-->

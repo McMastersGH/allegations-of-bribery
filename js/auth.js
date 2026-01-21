@@ -26,13 +26,20 @@ export async function login(email, password) {
   }
 }
 
-export async function signUp(email, password, displayName) {
+export async function signUp(email, password, displayName, consent = { termsAccepted: false, privacyAccepted: false }) {
   const sb = getSupabaseClient();
   try {
+    const nowIso = new Date().toISOString();
     const { data, error } = await sb.auth.signUp({
       email,
       password,
-      options: { data: { display_name: displayName || "" } }
+      options: {
+        data: {
+          display_name: displayName || "",
+          terms_accepted_at: consent?.termsAccepted ? nowIso : null,
+          privacy_accepted_at: consent?.privacyAccepted ? nowIso : null
+        }
+      }
     });
     if (error) return { ok: false, error: error.message };
 
@@ -40,13 +47,14 @@ export async function signUp(email, password, displayName) {
     const userId = data.user?.id;
     if (userId) {
       const { error: pErr } = await sb.from("authors").insert([{
-  user_id: userId,
-  display_name: displayName || null
+        user_id: userId,
+        display_name: displayName || null,
+        terms_accepted_at: consent?.termsAccepted ? nowIso : null,
+        privacy_accepted_at: consent?.privacyAccepted ? nowIso : null
       }]);
 
       if (pErr && !String(pErr.message || "").toLowerCase().includes("duplicate")) {
         // Do not fail signup for profile insert issues; surface message as warning.
-        // Caller will still proceed.
         console.warn("Profile insert warning:", pErr);
       }
     }
