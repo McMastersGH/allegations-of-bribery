@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Forum</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-[#0f1216] text-slate-200 antialiased">
+  <header class="border-b border-[#1f2933] bg-[#111827]/95 backdrop-blur">
+    <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+      <a href="index.html" class="text-lg font-semibold">Allegations of Bribery</a>
+      <nav class="hidden gap-5 text-sm text-slate-300 md:flex">
+        <a class="hover:text-white" href="index.html">Forums</a>
+        <a class="hover:text-white" href="#">Documents</a>
+        <a class="hover:text-white" href="#">Cases</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-6xl px-4 py-6">
+    <div class="rounded-lg border border-[#1f2933] bg-[#111827] p-5">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h1 id="forumTitle" class="text-xl font-semibold">Forum</h1>
+          <p id="forumDesc" class="mt-1 text-sm text-slate-400"></p>
+        </div>
+        <a href="index.html" class="text-sm text-sky-300 hover:text-sky-200">← Back</a>
+      </div>
+    </div>
+
+    <div class="mt-5 rounded-lg border border-[#1f2933] bg-[#0b0e13] p-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-semibold">Threads</h2>
+        <div id="status" class="text-xs text-slate-500"></div>
+      </div>
+
+      <div id="threads" class="mt-4 divide-y divide-[#1f2933]">
+        <!-- rows injected here -->
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="js/forum.js"></script>
+</body>
+</html>
