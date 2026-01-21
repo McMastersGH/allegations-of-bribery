@@ -1,4 +1,6 @@
 // js/ucGate.js
+console.error("ucGate.js loaded");
+
 (function () {
   const KEY = "aob_uc_gate_dismissed_v1";
 
