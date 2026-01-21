@@ -47,23 +47,14 @@ export async function signUp(email, password, displayName, consent = { termsAcce
     const userId = data.user?.id;
     if (userId) {
       const { error: pErr } = await sb.from("authors").insert([{
-<<<<<<< HEAD
         user_id: userId,
         display_name: displayName || null,
         terms_accepted_at: consent?.termsAccepted ? nowIso : null,
         privacy_accepted_at: consent?.privacyAccepted ? nowIso : null
-=======
-  user_id: userId,
-  display_name: displayName || null
->>>>>>> origin/main
       }]);
 
       if (pErr && !String(pErr.message || "").toLowerCase().includes("duplicate")) {
         // Do not fail signup for profile insert issues; surface message as warning.
-<<<<<<< HEAD
-=======
-        // Caller will still proceed.
->>>>>>> origin/main
         console.warn("Profile insert warning:", pErr);
       }
     }
