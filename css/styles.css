@@ -71,8 +71,8 @@ body {
   background-color: #0b0f1a;
 
   /* Image layer */
-  background-image: url("../assets/ladyjusticebribed.png");
-  background-repeat: no-repeat;
+  /*background-image: url("../assets/ladyjusticebribed.png");
+  background-repeat: no-repeat; */
 
   /* Position: center vertically, right horizontally */
   background-position: right center;
