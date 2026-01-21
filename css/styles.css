@@ -110,4 +110,40 @@ body::before {
 .small { font-size: .92rem; }
 
 .btn.disabled, .btn:disabled { opacity: .55; cursor: not-allowed; }
-/*<!--testing vsc git-->
+
+/* ===== Under Construction Overlay ===== */
+.uc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background:
+    linear-gradient(
+      rgba(15, 18, 22, 0.92),
+      rgba(15, 18, 22, 0.92)
+    ),
+    url("./under-construction-bg.jpg") center / cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.uc-card {
+  max-width: 520px;
+  padding: 2.5rem;
+  border-radius: 14px;
+  background: #0f1216;
+  border: 1px solid #1f2933;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+
+.uc-card h1 {
+  font-size: 1.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.uc-card p {
+  color: #9ca3af;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
