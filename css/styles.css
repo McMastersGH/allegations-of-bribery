@@ -147,3 +147,66 @@ body::before {
   font-size: 0.95rem;
   line-height: 1.5;
 }
+
+/* ===== Under Construction Gate ===== */
+.uc-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    linear-gradient(rgba(15, 18, 22, 0.82), rgba(15, 18, 22, 0.82)),
+    url("./under-construction-bg.jpg") center / cover no-repeat;
+}
+
+.uc-gate-card {
+  width: min(720px, 100%);
+  padding: 2.25rem;
+  border-radius: 16px;
+  background: #0f1216;
+  border: 1px solid #1f2933;
+  box-shadow: 0 20px 70px rgba(0,0,0,0.65);
+  text-align: center;
+}
+
+.uc-gate-card h1 {
+  font-size: 2rem;
+  margin: 0 0 0.75rem 0;
+}
+
+.uc-gate-sub {
+  margin: 0 0 1rem 0;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+.uc-gate-cta {
+  margin: 0 0 1.25rem 0;
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+.uc-gate-btn {
+  display: inline-block;
+  border: 1px solid #334155;
+  background: #0b1220;
+  color: #e2e8f0;
+  padding: 0.9rem 1.25rem;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.uc-gate-btn:hover {
+  background: #0a162a;
+}
+
+.uc-gate-note {
+  margin: 1.25rem 0 0 0;
+  color: #9ca3af;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
