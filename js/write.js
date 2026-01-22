@@ -1,3 +1,8 @@
+document.addEventListener("DOMContentLoaded", () => {
+  const el = document.getElementById("status");
+  if (el) el.textContent = "DEBUG: write.js loaded";
+});
+
 // js/write.js
 import { requireAuthOrRedirect, getMyProfile, wireAuthButtons } from "./auth.js";
 import { createPost } from "./blogApi.js";
@@ -33,6 +38,7 @@ async function createAndMaybeUpload({ isPublished }) {
   if (!session) return;
 
   const profile = await getMyProfile();
+
   if (!profile?.approved) {
   setStatus("Your account is not approved to publish. Ask the admin to set authors.approved = true.");
   return;
@@ -49,12 +55,12 @@ async function createAndMaybeUpload({ isPublished }) {
   const contentHtml = raw ? htmlFromPlainText(raw) : `<div class="muted">Documents attached below.</div>`;
 
   const created = await createPost({
-    title,
-    content_html: contentHtml,
-    content_text: contentText,
-    author_id: profile.user_id,
-    is_published: Boolean(isPublished)
-  });
+  title,
+  body: contentText, // your DB column is 'body' (plain text is fine)
+  forum_slug: new URLSearchParams(window.location.search).get("forum") || "general-topics",
+  author_id: profile.user_id,
+  status: isPublished ? "published" : "draft"
+});
 
   if (files.length) {
     await uploadAndRecordFiles({

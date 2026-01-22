@@ -1,27 +1,18 @@
 import { supabase } from "./supabaseClient.js";
 
-console.log("forum.js loaded");
-console.log("supabase imported:", !!supabase);
-
 const params = new URLSearchParams(window.location.search);
 const forumSlug = params.get("forum");
-
-console.log("forum slug:", forumSlug);
 
 supabase
   .from("forums")
   .select("slug, title")
   .then(({ data, error }) => {
-    console.log("FORUM LIST RESULT:", data, error);
   });
 
 
 function getForumSlug() {
   const params = new URLSearchParams(window.location.search);
-  
-  console.log("LOCATION:", window.location.href, "SEARCH:", window.location.search);
-
-  return params.get("forum");
+    return params.get("forum");
 }
 
 function escapeHtml(s) {

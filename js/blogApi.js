@@ -52,23 +52,19 @@ export async function getPostById(id) {
   return data;
 }
 
-export async function createPost({ title, content_html, content_text, author_id, is_published = true }) {
+export async function createPost({ title, body, forum_slug, author_id, status }) {
   const sb = getSupabaseClient();
-
-  // Your actual posts table columns are: title, body, status, author_id
-  // Map the existing caller payload into that schema.
-  const body = (content_text ?? content_html ?? "").toString();
-  const status = is_published ? "published" : "draft";
 
   const { data, error } = await sb
     .from("posts")
     .insert([{
       title,
       body,
+      forum_slug,
       author_id,
       status
     }])
-    .select("id")
+    .select("id,title,created_at,author_id,forum_slug,status")
     .single();
 
   if (error) throw error;
