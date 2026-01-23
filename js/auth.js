@@ -67,12 +67,11 @@ export async function getMyProfile() {
   const session = await getSession();
   if (!session) return null;
 
-  // Use SECURITY DEFINER RPC so we don't need SELECT on authors
   const { data, error } = await sb.rpc("my_author_status");
   if (error) throw error;
 
-  // rpc returns a row shaped like:
-  // { user_id, display_name, approved, is_anonymous }
+  // Normalize TABLE return to single row
+  if (Array.isArray(data)) return data[0] ?? null;
   return data ?? null;
 }
 
