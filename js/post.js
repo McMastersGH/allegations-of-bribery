@@ -1,7 +1,7 @@
 // js/post.js
 import { getPostById, listComments, addComment, listPostFiles } from "./blogApi.js";
 import { getPublicUrl } from "./storageApi.js";
-import { getSession, getMyProfile, wireAuthButtons } from "./auth.js";
+import { getSession, getMyProfile, wireAuthButtons, getMyAuthorStatus } from "./auth.js";
 
 const postTitle = document.getElementById("postTitle");
 const postMeta = document.getElementById("postMeta");
