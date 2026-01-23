@@ -62,17 +62,12 @@ export async function requireAuthOrRedirect(redirectTo = "./login.html") {
   return session;
 }
 
+// Keep this name for backwards compatibility in your other files.
+// It now returns the SAME safe object as getMyAuthorStatus().
 export async function getMyProfile() {
-  const sb = getSupabaseClient();
   const session = await getSession();
   if (!session) return null;
-
-  const { data, error } = await sb.rpc("my_author_status");
-  if (error) throw error;
-
-  // Normalize TABLE return to single row
-  if (Array.isArray(data)) return data[0] ?? null;
-  return data ?? null;
+  return await getMyAuthorStatus();
 }
 
 // Returns { user_id, display_name, approved, is_anonymous } or null
