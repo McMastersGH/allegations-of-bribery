@@ -76,6 +76,18 @@ export async function getMyProfile() {
   return data ?? null;
 }
 
+// Returns { user_id, display_name, approved, is_anonymous } or null
+export async function getMyAuthorStatus() {
+  const { supabase } = await import("./supabaseClient.js");
+
+  const { data, error } = await supabase.rpc("my_author_status");
+  if (error) throw error;
+
+  // Supabase RPC can return an array for TABLE returns
+  if (Array.isArray(data)) return data[0] ?? null;
+  return data ?? null;
+}
+
 /**
  * Wires up the header Login/Logout controls used in your HTML.
  * - loginLinkId: <a> element that should be hidden when logged in
