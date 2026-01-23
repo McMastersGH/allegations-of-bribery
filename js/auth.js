@@ -42,23 +42,6 @@ export async function signUp(email, password, displayName, consent = { termsAcce
       }
     });
     if (error) return { ok: false, error: error.message };
-
-    // Best-effort: create a profile row (ignore duplicates if trigger already does it).
-    const userId = data.user?.id;
-    if (userId) {
-      const { error: pErr } = await sb.from("authors").insert([{
-        user_id: userId,
-        display_name: displayName || null,
-        terms_accepted_at: consent?.termsAccepted ? nowIso : null,
-        privacy_accepted_at: consent?.privacyAccepted ? nowIso : null
-      }]);
-
-      if (pErr && !String(pErr.message || "").toLowerCase().includes("duplicate")) {
-        // Do not fail signup for profile insert issues; surface message as warning.
-        console.warn("Profile insert warning:", pErr);
-      }
-    }
-
     return { ok: true, data };
   } catch (e) {
     return { ok: false, error: String(e) };
@@ -84,14 +67,13 @@ export async function getMyProfile() {
   const session = await getSession();
   if (!session) return null;
 
-  const { data, error } = await sb
-    .from("authors")
-    .select("user_id, display_name, approved")
-    .eq("user_id", session.user.id)
-    .maybeSingle();
-
+  // Use SECURITY DEFINER RPC so we don't need SELECT on authors
+  const { data, error } = await sb.rpc("my_author_status");
   if (error) throw error;
-  return data;
+
+  // rpc returns a row shaped like:
+  // { user_id, display_name, approved, is_anonymous }
+  return data ?? null;
 }
 
 /**
@@ -115,4 +97,11 @@ export async function wireAuthButtons({ loginLinkId = "loginLink", logoutBtnId =
       window.location.href = "./index.html";
     };
   }
+}
+
+export async function setMyAnonymity(isAnonymous) {
+  const sb = getSupabaseClient();
+  const { error } = await sb.rpc("set_my_anonymity", { p_is_anonymous: Boolean(isAnonymous) });
+  if (error) throw error;
+  return true;
 }

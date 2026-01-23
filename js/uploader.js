@@ -4,7 +4,7 @@ import { getSupabaseClient } from "./supabaseClient.js";
 
 export async function uploadAndRecordFiles({ postId, authorId, files }) {
   const sb = getSupabaseClient();
-  const bucket = "post-files";
+  const bucket = "post-uploads";
 
   const results = [];
   for (const file of files) {
