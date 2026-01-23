@@ -130,8 +130,16 @@ try {
   }
 
   postTitle.textContent = post.title || "";
-  postMeta.textContent =
+
+// NEW: fill the spans inside #postMeta instead of overwriting it
+const authorSpan = postMeta.querySelector(".author-name");
+const dateSpan = postMeta.querySelector(".post-date");
+
+if (authorSpan) authorSpan.textContent = ""; // leave empty; CSS will show "Chose Anonymity"
+if (dateSpan) {
+  dateSpan.textContent =
     `Published: ${fmtDate(post.created_at)}` + (post.status === "published" ? "" : " (DRAFT)");
+}
 
   // body is plain text in your schema; render safely
   postContent.innerHTML = `<div style="white-space:pre-wrap;line-height:1.6">${escapeHtml(post.body || "")}</div>`;
