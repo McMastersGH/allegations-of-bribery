@@ -1,13 +1,7 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const el = document.getElementById("status");
-  if (el) el.textContent = "DEBUG: write.js loaded";
-});
-
 // js/write.js
-import { requireAuthOrRedirect, getMyProfile, wireAuthButtons } from "./auth.js";
+import { getSession, getMyProfile, getMyAuthorStatus, setMyAnonymity, wireAuthButtons } from "./auth.js";
 import { createPost } from "./blogApi.js";
 import { uploadAndRecordFiles } from "./uploader.js";
-import { getMyAuthorStatus, setMyAnonymity } from "./auth.js";
 
 const statusMsg = document.getElementById("statusMsg");
 const titleEl = document.getElementById("title");
@@ -17,42 +11,25 @@ const publishBtn = document.getElementById("publishBtn");
 const saveDraftBtn = document.getElementById("saveDraftBtn");
 const anonToggle = document.getElementById("anonToggle");
 const anonStatus = document.getElementById("anonStatus");
-// Initialize anonymity toggle based on current user status
 
-async function wireAnonToggle() {
-  if (!anonToggle || !anonStatus) return;
-
-  try {
-    // Load current setting from DB
-    const status = await getMyAuthorStatus(); // { approved, is_anonymous, ... } or null
-    const isAnon = !!status?.is_anonymous;
-
-    anonToggle.checked = isAnon;
-    anonStatus.textContent = isAnon
-      ? "Anonymity is ON. Your posts/comments will show “Chose Anonymity”."
-      : "Anonymity is OFF. Your display name will be shown when available.";
-
-    // Save changes when user clicks
-    anonToggle.onchange = async () => {
-      anonToggle.disabled = true;
-      anonStatus.textContent = "Saving…";
-
-      await setMyAnonymity(anonToggle.checked);
-
-      anonStatus.textContent = anonToggle.checked
-        ? "Saved. Anonymity is ON."
-        : "Saved. Anonymity is OFF.";
-
-      anonToggle.disabled = false;
-    };
-  } catch (e) {
-    anonStatus.textContent = `Anonymity toggle error: ${e?.message || String(e)}`;
-    anonToggle.disabled = true;
-  }
-}
+const gate = document.getElementById("writeGate");
+const form = document.getElementById("writeForm");
 
 function setStatus(t) {
   if (statusMsg) statusMsg.textContent = t || "";
+}
+
+function showGate(html) {
+  if (gate) {
+    gate.style.display = "block";
+    gate.innerHTML = html;
+  }
+  if (form) form.style.display = "none";
+}
+
+function showForm() {
+  if (gate) gate.style.display = "none";
+  if (form) form.style.display = "block";
 }
 
 function escapeHtml(s) {
@@ -69,15 +46,41 @@ function htmlFromPlainText(text) {
   return `<div style="white-space:normal;line-height:1.6">${safe}</div>`;
 }
 
+async function wireAnonToggle() {
+  if (!anonToggle || !anonStatus) return;
+
+  try {
+    const st = await getMyAuthorStatus(); // { user_id, display_name, approved, is_anonymous }
+    const isAnon = !!st?.is_anonymous;
+
+    anonToggle.checked = isAnon;
+    anonStatus.textContent = isAnon
+      ? "Anonymity is ON. Posts/comments will show “Chose Anonymity”."
+      : "Anonymity is OFF. Your display name will be shown when available.";
+
+    anonToggle.onchange = async () => {
+      anonToggle.disabled = true;
+      anonStatus.textContent = "Saving…";
+      await setMyAnonymity(anonToggle.checked);
+      anonStatus.textContent = anonToggle.checked
+        ? "Saved. Anonymity is ON."
+        : "Saved. Anonymity is OFF.";
+      anonToggle.disabled = false;
+    };
+  } catch (e) {
+    anonStatus.textContent = `Anonymity toggle error: ${e?.message || String(e)}`;
+    anonToggle.disabled = true;
+  }
+}
+
 async function createAndMaybeUpload({ isPublished }) {
-  const session = await requireAuthOrRedirect("./login.html");
-  if (!session) return;
+  const session = await getSession();
+  if (!session) return; // gated already
 
   const profile = await getMyProfile();
-
   if (!profile?.approved) {
-  setStatus("Your account is not approved to publish. Ask the admin to set authors.approved = true.");
-  return;
+    setStatus("Logged in, but not approved to publish. Ask the admin to approve your account in Supabase.");
+    return;
   }
 
   const title = (titleEl?.value || "").trim();
@@ -87,16 +90,17 @@ async function createAndMaybeUpload({ isPublished }) {
   if (!title) throw new Error("Title is required.");
   if (!raw && files.length === 0) throw new Error("Provide post text and/or upload at least one document.");
 
+  const forumSlug = new URLSearchParams(window.location.search).get("forum") || "general-topics";
   const contentText = raw || "";
   const contentHtml = raw ? htmlFromPlainText(raw) : `<div class="muted">Documents attached below.</div>`;
 
   const created = await createPost({
-  title,
-  body: contentText, // your DB column is 'body' (plain text is fine)
-  forum_slug: new URLSearchParams(window.location.search).get("forum") || "general-topics",
-  author_id: profile.user_id,
-  status: isPublished ? "published" : "draft"
-});
+    title,
+    body: contentText,          // DB column: body (plain text)
+    forum_slug: forumSlug,
+    author_id: profile.user_id,
+    status: isPublished ? "published" : "draft"
+  });
 
   if (files.length) {
     await uploadAndRecordFiles({
@@ -106,25 +110,36 @@ async function createAndMaybeUpload({ isPublished }) {
     });
   }
 
-  // Drafts are viewable only by the author (enforced in post.js).
   window.location.href = `./post.html?id=${encodeURIComponent(created.id)}`;
 }
 
+// ---- BOOTSTRAP (one-time) ----
 await wireAuthButtons({ loginLinkId: "loginLink", logoutBtnId: "logoutBtn" });
 
-// Ensure page is only usable by logged-in users (write page requirement)
-const session = await requireAuthOrRedirect("./login.html");
-if (session) {
-  const profile = await getMyProfile();
-  if (!profile?.approved) {
-    setStatus("Logged in, but not approved to publish yet. Ask the admin to approve your account in Supabase.");
+const session = await getSession();
+if (!session) {
+  showGate(`
+    <h2>Login Required</h2>
+    <p class="muted">You must be logged in to create a post.</p>
+    <a class="btn" href="./login.html">Login</a>
+  `);
+  // Stop initialization; keep page clean.
+} else {
+  const st = await getMyAuthorStatus();
+  if (!st?.approved) {
+    showGate(`
+      <h2>Not Approved</h2>
+      <p class="muted">Your account is not approved to publish threads yet.</p>
+      <p class="muted">If you believe this is an error, contact the site administrator.</p>
+    `);
   } else {
+    showForm();
     setStatus("Approved author. You can publish.");
+    await wireAnonToggle();
   }
 }
 
-await wireAnonToggle();
-
+// ---- BUTTON HANDLERS ----
 publishBtn?.addEventListener("click", async () => {
   publishBtn.disabled = true;
   saveDraftBtn.disabled = true;
