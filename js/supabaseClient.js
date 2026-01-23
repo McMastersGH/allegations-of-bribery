@@ -1,5 +1,5 @@
 // js/supabaseClient.js
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/esm/supabase.js";
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
 // Supabase Dashboard → Project Settings → API
 export const SUPABASE_URL = "https://ovsshqgcfucwzcgqltes.supabase.co";
