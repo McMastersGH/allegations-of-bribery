@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
 import { requireAuthOrRedirect, getMyProfile, wireAuthButtons } from "./auth.js";
 import { createPost } from "./blogApi.js";
 import { uploadAndRecordFiles } from "./uploader.js";
+import { getMyAuthorStatus, setMyAnonymity } from "./auth.js";
 
 const statusMsg = document.getElementById("statusMsg");
 const titleEl = document.getElementById("title");
@@ -14,6 +15,41 @@ const contentEl = document.getElementById("content");
 const filesEl = document.getElementById("files");
 const publishBtn = document.getElementById("publishBtn");
 const saveDraftBtn = document.getElementById("saveDraftBtn");
+const anonToggle = document.getElementById("anonToggle");
+const anonStatus = document.getElementById("anonStatus");
+// Initialize anonymity toggle based on current user status
+
+async function wireAnonToggle() {
+  if (!anonToggle || !anonStatus) return;
+
+  try {
+    // Load current setting from DB
+    const status = await getMyAuthorStatus(); // { approved, is_anonymous, ... } or null
+    const isAnon = !!status?.is_anonymous;
+
+    anonToggle.checked = isAnon;
+    anonStatus.textContent = isAnon
+      ? "Anonymity is ON. Your posts/comments will show “Chose Anonymity”."
+      : "Anonymity is OFF. Your display name will be shown when available.";
+
+    // Save changes when user clicks
+    anonToggle.onchange = async () => {
+      anonToggle.disabled = true;
+      anonStatus.textContent = "Saving…";
+
+      await setMyAnonymity(anonToggle.checked);
+
+      anonStatus.textContent = anonToggle.checked
+        ? "Saved. Anonymity is ON."
+        : "Saved. Anonymity is OFF.";
+
+      anonToggle.disabled = false;
+    };
+  } catch (e) {
+    anonStatus.textContent = `Anonymity toggle error: ${e?.message || String(e)}`;
+    anonToggle.disabled = true;
+  }
+}
 
 function setStatus(t) {
   if (statusMsg) statusMsg.textContent = t || "";
@@ -86,6 +122,8 @@ if (session) {
     setStatus("Approved author. You can publish.");
   }
 }
+
+await wireAnonToggle();
 
 publishBtn?.addEventListener("click", async () => {
   publishBtn.disabled = true;
