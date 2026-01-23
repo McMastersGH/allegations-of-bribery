@@ -220,6 +220,14 @@ body::before {
   margin: 0 auto;
 }
 
+/* Light container used inside cards (prevents "card inside card" double styling) */
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
 /* =========================================================
    Global Author Display
    ========================================================= */
