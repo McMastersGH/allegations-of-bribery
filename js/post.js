@@ -100,14 +100,14 @@ async function wireCommentForm(post) {
         return;
       }
 
-      const status = await getMyAuthorStatus(); // { user_id, display_name, approved, is_anonymous }
+      const status = await getMyAuthorStatus(); // { user_id, display_name, approved, is_anonymous } or null
       const profile = await getMyProfile();
 
       const displayName = status?.is_anonymous
         ? "Chose Anonymity"
         : (profile?.display_name || status?.display_name || profile?.email || "Member");
 
-      await addComment(post.id, body, displayName);
+        await addComment(post.id, body, displayName);
 
       commentText.value = "";
       commentMsg.textContent = "Posted.";
