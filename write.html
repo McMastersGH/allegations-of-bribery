@@ -67,6 +67,14 @@
   window.pdfjsLib = pdfjsLib;
   </script>
 
+  <script>
+  const link = document.getElementById("loginLink");
+  if (link) {
+    const next = encodeURIComponent(window.location.pathname + window.location.search);
+    link.href = `./login.html?next=${next}`;
+  }
+  </script>
+
   <script type="module" src="./js/write.js"></script>
 
   <a class="btn ghost" href="./login.html?next=" id="loginLink">Login</a>

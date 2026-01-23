@@ -28,7 +28,9 @@ form?.addEventListener("submit", async (e) => {
     }
 
     setMsg("Login successful. Redirecting...");
-    window.location.href = "./index.html";
+    const next = new URLSearchParams(window.location.search).get("next");
+    window.location.href = next || "./index.html";
+
   } catch (err) {
     // IMPORTANT: this catches the NetworkError and shows it instead of silently redirecting
     setMsg(`Login exception: ${err?.message || String(err)}`);

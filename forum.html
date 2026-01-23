@@ -44,6 +44,14 @@
     </div>
   </main>
 
+  <script>
+  const link = document.getElementById("loginLink");
+  if (link) {
+    const next = encodeURIComponent(window.location.pathname + window.location.search);
+    link.href = `./login.html?next=${next}`;
+  }
+  </script>
+
   <script type="module" src="js/forum.js"></script>
 </body>
 </html>
