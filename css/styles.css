@@ -219,3 +219,21 @@ body::before {
   display: block;
   margin: 0 auto;
 }
+
+/* =========================================================
+   Global Author Display
+   ========================================================= */
+
+.author-name {
+  margin-left: 0.5rem;
+  color: #e5e7eb; /* slate-200 */
+  font-weight: 600;
+}
+
+/* Explicit anonymity indicator */
+.author-name:empty::after {
+  content: "Chose Anonymity";
+  color: #cbd5e1; /* slate-300 */
+  font-style: italic;
+  font-weight: 500;
+}
