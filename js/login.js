@@ -1,62 +1,46 @@
-// js/login.js
-import { login, wireAuthButtons, getSession } from "./auth.js";
+<!doctype html>
+<html lang="en">
+<head>
+  <link rel="icon" href="./favicon.ico">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Login — Allegations of Bribery</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <img src="./assets/ladyjusticebribed.png" alt="logo" class="logo" />
+      <div>
+        <h1>Allegations of Bribery</h1>
+        <p class="muted">Login</p>
+      </div>
+    </div>
+    <nav class="nav">
+      <a class="btn ghost" href="./index.html">Home</a>
+      <a class="btn ghost" href="./signup.html">Register</a>
+    </nav>
+  </header>
 
-function getNextUrl() {
-  const u = new URL(window.location.href);
-  const next = u.searchParams.get("next");
+  <main class="container">
+    <section class="card">
+      <h2>Login</h2>
+      <p class="muted" id="msg"></p>
 
-  // Default
-  if (!next) return "./index.html";
+      <label class="label">Email</label>
+      <input id="email" class="input" type="email" autocomplete="email" />
 
-  // Allow only same-origin relative paths (safe)
-  // Accepts: /post.html?id=..., ./post.html?id=..., post.html?id=...
-  if (next.startsWith("http://") || next.startsWith("https://")) return "./index.html";
-  if (next.startsWith("//")) return "./index.html";
+      <label class="label">Password</label>
+      <input id="password" class="input" type="password" autocomplete="current-password" />
 
-  // If it starts with /, keep it (site-root relative)
-  if (next.startsWith("/")) return next;
+      <div class="row gap">
+        <button id="loginBtn" class="btn primary">Login</button>
+      </div>
 
-  // Otherwise treat as relative to current directory
-  return next.startsWith("./") || next.startsWith("../") ? next : `./${next}`;
-}
+      <p class="muted">No account? <a href="./signup.html">Register here</a>.</p>
+    </section>
+  </main>
 
-document.addEventListener("DOMContentLoaded", async () => {
-  await wireAuthButtons({ loginLinkId: "loginLink", logoutBtnId: "logoutBtn" });
-
-  // If user is already logged in, return them immediately
-  try {
-    const existing = await getSession();
-    if (existing) {
-      window.location.href = getNextUrl();
-      return;
-    }
-  } catch {
-    // ignore session check errors; user can still log in
-  }
-
-  const form = document.getElementById("loginForm");
-  const emailEl = document.getElementById("email");
-  const passEl = document.getElementById("password");
-  const msgEl = document.getElementById("msg");
-
-  if (!form) return;
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    if (msgEl) msgEl.textContent = "Signing in...";
-
-    const email = (emailEl?.value || "").trim();
-    const password = passEl?.value || "";
-
-    const res = await login(email, password);
-
-    if (!res?.ok) {
-      if (msgEl) msgEl.textContent = res?.error || "Login failed.";
-      return;
-    }
-
-    if (msgEl) msgEl.textContent = "Signed in.";
-    window.location.href = getNextUrl();
-  });
-});
+  <script type="module" src="./js/login.js"></script>
+</body>
+</html>
