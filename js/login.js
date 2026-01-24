@@ -1,62 +1,101 @@
 // js/login.js
-import { login, wireAuthButtons, getSession } from "./auth.js";
+import { login, getSession } from "./auth.js";
 
 function getNextUrl() {
   const u = new URL(window.location.href);
   const next = u.searchParams.get("next");
 
-  // Default
   if (!next) return "./index.html";
 
-  // Allow only same-origin relative paths (safe)
-  // Accepts: /post.html?id=..., ./post.html?id=..., post.html?id=...
-  if (next.startsWith("http://") || next.startsWith("https://")) return "./index.html";
-  if (next.startsWith("//")) return "./index.html";
+  // block absolute URLs (open redirect protection)
+  if (next.startsWith("http://") || next.startsWith("https://") || next.startsWith("//")) {
+    return "./index.html";
+  }
 
-  // If it starts with /, keep it (site-root relative)
+  // allow site-root paths like /post.html?id=...
   if (next.startsWith("/")) return next;
 
-  // Otherwise treat as relative to current directory
+  // allow relative paths like post.html?id=... or ./post.html?id=...
   return next.startsWith("./") || next.startsWith("../") ? next : `./${next}`;
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
-  await wireAuthButtons({ loginLinkId: "loginLink", logoutBtnId: "logoutBtn" });
+function setMsg(text) {
+  const msgEl = document.getElementById("msg");
+  if (msgEl) msgEl.textContent = text || "";
+}
 
-  // If user is already logged in, return them immediately
+async function doLogin() {
+  const emailEl = document.getElementById("email");
+  const passEl = document.getElementById("password");
+  const btn = document.getElementById("loginBtn");
+
+  const email = (emailEl?.value || "").trim();
+  const password = passEl?.value || "";
+
+  if (!email || !password) {
+    setMsg("Enter email and password.");
+    return;
+  }
+
+  try {
+    if (btn) btn.disabled = true;
+    setMsg("Signing in...");
+
+    const res = await login(email, password);
+
+    if (!res?.ok) {
+      setMsg(res?.error || "Login failed.");
+      return;
+    }
+
+    setMsg("Signed in.");
+    window.location.href = getNextUrl();
+  } catch (e) {
+    setMsg(`Error: ${e?.message || String(e)}`);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  // Hard proof the module loaded:
+  console.log("login.js loaded");
+  setMsg("Login page ready.");
+
+  // If already logged in, redirect immediately.
   try {
     const existing = await getSession();
     if (existing) {
       window.location.href = getNextUrl();
       return;
     }
-  } catch {
-    // ignore session check errors; user can still log in
+  } catch (e) {
+    // If session check fails, still allow manual login
+    console.warn("getSession failed on login page:", e);
   }
 
   const form = document.getElementById("loginForm");
-  const emailEl = document.getElementById("email");
-  const passEl = document.getElementById("password");
-  const msgEl = document.getElementById("msg");
+  const btn = document.getElementById("loginBtn");
 
-  if (!form) return;
+  // Bind submit
+  if (form) {
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      doLogin();
+    });
+  }
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
+  // Bind click (extra safety)
+  if (btn) {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      doLogin();
+    });
+  }
 
-    if (msgEl) msgEl.textContent = "Signing in...";
-
-    const email = (emailEl?.value || "").trim();
-    const password = passEl?.value || "";
-
-    const res = await login(email, password);
-
-    if (!res?.ok) {
-      if (msgEl) msgEl.textContent = res?.error || "Login failed.";
-      return;
-    }
-
-    if (msgEl) msgEl.textContent = "Signed in.";
-    window.location.href = getNextUrl();
-  });
+  // If neither exists, we want an obvious message.
+  if (!form && !btn) {
+    setMsg("Login form not found. Check login.html IDs: loginForm, loginBtn, email, password.");
+    console.error("Missing loginForm/loginBtn in DOM.");
+  }
 });

@@ -27,17 +27,22 @@
       <h2>Login</h2>
       <p class="muted" id="msg"></p>
 
-      <label class="label">Email</label>
-      <input id="email" class="input" type="email" autocomplete="email" />
+      <!-- IMPORTANT: login.js expects this form -->
+      <form id="loginForm">
+        <label class="label" for="email">Email</label>
+        <input id="email" class="input" type="email" autocomplete="email" required />
 
-      <label class="label">Password</label>
-      <input id="password" class="input" type="password" autocomplete="current-password" />
+        <label class="label" for="password">Password</label>
+        <input id="password" class="input" type="password" autocomplete="current-password" required />
 
-      <div class="row gap">
-        <button id="loginBtn" class="btn primary">Login</button>
-      </div>
+        <div class="row gap" style="margin-top:12px;">
+          <button id="loginBtn" class="btn primary" type="submit">Login</button>
+        </div>
+      </form>
 
-      <p class="muted">No account? <a href="./signup.html">Register here</a>.</p>
+      <p class="muted" style="margin-top:12px;">
+        No account? <a href="./signup.html">Register here</a>.
+      </p>
     </section>
   </main>
 
