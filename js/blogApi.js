@@ -14,18 +14,25 @@ export function slugify(input) {
  * Lists posts.
  * @param {object} opts
  * @param {number} opts.limit
- * @param {string} opts.search - best-effort search over title/content_text
+ * @param {string} opts.search - best-effort search over title/body
  * @param {boolean} opts.publishedOnly
+ * @param {string|null} opts.forum_slug - optional filter
  */
-export async function listPosts({ limit = 20, search = "", publishedOnly = true } = {}) {
+export async function listPosts({
+  limit = 20,
+  search = "",
+  publishedOnly = true,
+  forum_slug = null,
+} = {}) {
   const sb = getSupabaseClient();
 
   let q = sb
     .from("posts")
-    .select("id, title, created_at, author_id, status")
+    .select("id, title, created_at, author_id, forum_slug, status, is_anonymous")
     .order("created_at", { ascending: false })
     .limit(limit);
 
+  if (forum_slug) q = q.eq("forum_slug", forum_slug);
   if (publishedOnly) q = q.eq("status", "published");
 
   const s = String(search || "").trim();
@@ -34,7 +41,6 @@ export async function listPosts({ limit = 20, search = "", publishedOnly = true 
   }
 
   const { data, error } = await q;
-
   if (error) throw error;
   return data || [];
 }
@@ -44,7 +50,7 @@ export async function getPostById(id) {
 
   const { data, error } = await sb
     .from("posts")
-    .select("id, title, body, status, created_at, author_id")
+    .select("id, title, body, status, created_at, author_id, forum_slug, is_anonymous")
     .eq("id", id)
     .maybeSingle();
 
@@ -52,19 +58,39 @@ export async function getPostById(id) {
   return data;
 }
 
-export async function createPost({ title, body, forum_slug, author_id, status }) {
+/**
+ * Create a post.
+ * IMPORTANT: is_anonymous is PER-POST now.
+ */
+export async function createPost(post) {
   const sb = getSupabaseClient();
+
+  const {
+    title,
+    body,
+    forum_slug,
+    author_id,
+    status = "draft",
+    is_anonymous = false,
+  } = post || {};
+
+  // Minimal validation (fail early with clear messages)
+  if (!title || !String(title).trim()) throw new Error("createPost: title is required");
+  if (body === undefined || body === null) throw new Error("createPost: body is required (cannot be null)");
+  if (!forum_slug || !String(forum_slug).trim()) throw new Error("createPost: forum_slug is required");
+  if (!author_id) throw new Error("createPost: author_id is required");
 
   const { data, error } = await sb
     .from("posts")
     .insert([{
-      title,
-      body,
-      forum_slug,
+      title: String(title).trim(),
+      body: String(body),
+      forum_slug: String(forum_slug).trim(),
       author_id,
-      status
+      status,
+      is_anonymous: Boolean(is_anonymous),
     }])
-    .select("id,title,created_at,author_id,forum_slug,status")
+    .select("id,title,created_at,author_id,forum_slug,status,is_anonymous")
     .single();
 
   if (error) throw error;
@@ -75,7 +101,7 @@ export async function listComments(postId) {
   const sb = getSupabaseClient();
   const { data, error } = await sb
     .from("comments")
-    .select("id, body, display_name, created_at")
+    .select("id, body, display_name, created_at, is_anonymous")
     .eq("post_id", postId)
     .order("created_at", { ascending: true });
 
@@ -83,14 +109,23 @@ export async function listComments(postId) {
   return data || [];
 }
 
-export async function addComment(postId, body, displayName) {
+/**
+ * Add a comment.
+ * IMPORTANT: is_anonymous is PER-COMMENT now.
+ * @param {string} postId
+ * @param {string} body
+ * @param {string} displayName
+ * @param {boolean} isAnonymous
+ */
+export async function addComment(postId, body, displayName, isAnonymous = false) {
   const sb = getSupabaseClient();
   const { data, error } = await sb
     .from("comments")
     .insert([{
       post_id: postId,
       body,
-      display_name: displayName || "Member"
+      display_name: displayName || "Member",
+      is_anonymous: Boolean(isAnonymous),
     }])
     .select("id")
     .single();

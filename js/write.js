@@ -77,11 +77,15 @@ async function createAndMaybeUpload({ isPublished }) {
   const session = await getSession();
   if (!session) return; // gated already
 
-  const profile = await getMyProfile();
-  if (!profile?.approved) {
-    setStatus("Logged in, but not approved to publish. Ask the admin to approve your account in Supabase.");
-    return;
-  }
+  const status = await getMyAuthorStatus(); // { user_id, display_name, approved, is_anonymous }
+    if (!status?.approved) {
+    setStatus("Your account is not approved to publish. Ask the admin to approve your account in Supabase.");
+  return;
+}
+
+  const authorLabel = status.is_anonymous
+  ? "Chose Anonymity"
+  : (status.display_name || "Member");
 
   const title = (titleEl?.value || "").trim();
   const raw = (contentEl?.value || "").trim();
@@ -96,9 +100,10 @@ async function createAndMaybeUpload({ isPublished }) {
 
   const created = await createPost({
     title,
-    body: contentText,          // DB column: body (plain text)
-    forum_slug: forumSlug,
-    author_id: profile.user_id,
+    body: contentText,
+    forum_slug: new URLSearchParams(window.location.search).get("forum") || "general-topics",
+    author_id: status.user_id,
+    author_label: authorLabel,
     status: isPublished ? "published" : "draft"
   });
 
