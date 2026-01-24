@@ -11,6 +11,59 @@ function setMsg(text) {
   if (msgEl) msgEl.textContent = text;
 }
 
+// js/login.js
+import { login, wireAuthButtons, getSession } from "./auth.js";
+
+function getNextUrl() {
+  const u = new URL(window.location.href);
+  const next = u.searchParams.get("next");
+
+  // If next is missing, default to home
+  if (!next) return "./index.html";
+
+  // Security: only allow same-origin relative paths
+  // (prevents someone passing https://evil.com)
+  if (next.startsWith("/") || next.startsWith("./") || next.startsWith("../")) return next;
+
+  // If it's something weird, ignore it
+  return "./index.html";
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  await wireAuthButtons({ loginLinkId: "loginLink", logoutBtnId: "logoutBtn" });
+
+  // If already logged in, go back immediately
+  const existing = await getSession();
+  if (existing) {
+    window.location.href = getNextUrl();
+    return;
+  }
+
+  const form = document.getElementById("loginForm");
+  const emailEl = document.getElementById("email");
+  const passEl = document.getElementById("password");
+  const msgEl = document.getElementById("msg");
+
+  if (!form) return;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (msgEl) msgEl.textContent = "Signing in...";
+
+    const email = (emailEl?.value || "").trim();
+    const password = passEl?.value || "";
+
+    const res = await login(email, password);
+    if (!res.ok) {
+      if (msgEl) msgEl.textContent = res.error || "Login failed.";
+      return;
+    }
+
+    if (msgEl) msgEl.textContent = "Signed in.";
+    window.location.href = getNextUrl();
+  });
+});
+
 form?.addEventListener("submit", async (e) => {
   e.preventDefault();
   setMsg("Signing in...");
