@@ -18,46 +18,29 @@
     </div>
     <nav class="nav">
       <a class="btn ghost" href="./index.html">Home</a>
-      <a class="btn ghost" href="./signup.html">Sign up</a>
+      <a class="btn ghost" href="./signup.html">Register</a>
     </nav>
   </header>
 
   <main class="container">
-    <section class="card narrow">
+    <section class="card">
       <h2>Login</h2>
+      <p class="muted" id="msg"></p>
 
       <label class="label">Email</label>
-      <input id="email" class="input" type="email" autocomplete="email" placeholder="you@example.com" />
+      <input id="email" class="input" type="email" autocomplete="email" />
 
       <label class="label">Password</label>
-      <input id="password" class="input" type="password" autocomplete="current-password" placeholder="••••••••" />
+      <input id="password" class="input" type="password" autocomplete="current-password" />
 
       <div class="row gap">
-        <button id="loginBtn" class="btn">Login</button>
-        <a class="btn ghost" href="./signup.html">Create account</a>
+        <button id="loginBtn" class="btn primary">Login</button>
       </div>
 
-      <p id="msg" class="muted"></p>
+      <p class="muted">No account? <a href="./signup.html">Register here</a>.</p>
     </section>
   </main>
 
-  <script type="module">
-    import { login } from "./js/auth.js";
-
-    const email = document.getElementById("email");
-    const password = document.getElementById("password");
-    const msg = document.getElementById("msg");
-
-    document.getElementById("loginBtn").addEventListener("click", async () => {
-      msg.textContent = "Logging in...";
-      const res = await login(email.value.trim(), password.value);
-      if (!res.ok) {
-        msg.textContent = res.error;
-        return;
-      }
-      window.location.href = "./index.html";
-    });
-  </script>
   <script type="module" src="./js/login.js"></script>
 </body>
 </html>
