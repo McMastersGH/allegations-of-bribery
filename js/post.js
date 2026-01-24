@@ -1,12 +1,7 @@
 // js/post.js
 import { getPostById, listComments, addComment, listPostFiles } from "./blogApi.js";
 import { getPublicUrl } from "./storageApi.js";
-import {
-  getSession,
-  getMyAuthorStatus,
-  setMyAnonymity,
-  wireAuthButtons
-} from "./auth.js";
+import { getSession, getMyProfile, wireAuthButtons, getMyAuthorStatus, setMyAnonymity } from "./auth.js";
 
 const postTitle = document.getElementById("postTitle");
 const postMeta = document.getElementById("postMeta");
@@ -19,7 +14,7 @@ const commentText = document.getElementById("commentText");
 const commentBtn = document.getElementById("commentBtn");
 const commentMsg = document.getElementById("commentMsg");
 
-// Comment anonymity UI (these IDs exist in your post.html)
+// Handle anonymity toggle
 const commentAnonPanel = document.getElementById("commentAnonPanel");
 const commentAnonToggle = document.getElementById("commentAnonToggle");
 const commentAnonStatus = document.getElementById("commentAnonStatus");
@@ -60,11 +55,7 @@ async function renderFiles(postId) {
     const el = document.createElement("div");
     el.className = "item";
     el.innerHTML = `
-      <div>
-        <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
-          ${escapeHtml(f.original_name)}
-        </a>
-      </div>
+      <div><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(f.original_name)}</a></div>
       <div class="muted">${escapeHtml(f.mime_type || "file")} • ${escapeHtml(fmtDate(f.created_at))}</div>
     `;
     attachments.appendChild(el);
@@ -91,32 +82,12 @@ async function renderComments(postId) {
   }
 }
 
-function setPostMeta(post) {
-  // post.html has:
-  // <p class="muted" id="postMeta">
-  //   <span class="author-name"></span>
-  //   <span class="post-date"></span>
-  // </p>
-
-  const authorSpan = postMeta?.querySelector(".author-name");
-  const dateSpan = postMeta?.querySelector(".post-date");
-
-  // If you later add posts.author_display, this will show it.
-  // If not present/null, leave empty and your CSS fallback text will render.
-  if (authorSpan) {
-    authorSpan.textContent = post?.author_display ? String(post.author_display) : "";
-  }
-
-  if (dateSpan) {
-    dateSpan.textContent =
-      `Published: ${fmtDate(post.created_at)}` + (post.status === "published" ? "" : " (DRAFT)");
-  }
-}
-
 async function wireCommentForm(post) {
+  let currentAnon = false;
+
   const session = await getSession();
 
-  // Logged out
+  // Logged out: disable comment form + hide anon toggle UI
   if (!session) {
     commentGate.textContent = "To comment, please log in.";
     commentBtn.disabled = true;
@@ -126,7 +97,7 @@ async function wireCommentForm(post) {
     return;
   }
 
-  // Logged in
+  // Logged in: enable comment form + show anon toggle UI
   commentGate.textContent = "You are logged in.";
   commentBtn.disabled = false;
   commentText.disabled = false;
@@ -134,17 +105,16 @@ async function wireCommentForm(post) {
   if (commentAnonPanel) commentAnonPanel.style.display = "";
   if (commentAnonToggle) commentAnonToggle.disabled = false;
 
-  // Load current anonymity from DB and set checkbox
+  // Initialize toggle state from DB
   try {
-    const status = await getMyAuthorStatus(); // { user_id, display_name, approved, is_anonymous }
+    const status = await getMyAuthorStatus(); // { is_anonymous, ... }
     const isAnon = !!status?.is_anonymous;
 
     if (commentAnonToggle) commentAnonToggle.checked = isAnon;
-
     if (commentAnonStatus) {
       commentAnonStatus.textContent = isAnon
-        ? "Anonymity is ON. Your comments will show “Chose Anonymity”."
-        : "Anonymity is OFF. Your name will be shown when available.";
+        ? "Anonymity is ON for your account."
+        : "Anonymity is OFF for your account.";
     }
   } catch (e) {
     if (commentAnonStatus) {
@@ -152,53 +122,49 @@ async function wireCommentForm(post) {
     }
   }
 
-  // Save changes when toggled
+  // Persist toggle changes immediately
   if (commentAnonToggle) {
     commentAnonToggle.onchange = async () => {
       try {
         const next = !!commentAnonToggle.checked;
-
-        commentAnonToggle.disabled = true;
         if (commentAnonStatus) commentAnonStatus.textContent = "Saving...";
-
         await setMyAnonymity(next);
-
         if (commentAnonStatus) {
           commentAnonStatus.textContent = next
-            ? "Saved. Anonymity is ON."
-            : "Saved. Anonymity is OFF.";
+            ? "Anonymity is ON for your account."
+            : "Anonymity is OFF for your account.";
         }
       } catch (e) {
-        // revert checkbox
+        // revert UI if save fails
         commentAnonToggle.checked = !commentAnonToggle.checked;
-        if (commentAnonStatus) commentAnonStatus.textContent = `Save failed: ${e?.message || String(e)}`;
-      } finally {
-        commentAnonToggle.disabled = false;
+        if (commentAnonStatus) {
+          commentAnonStatus.textContent = `Save failed: ${e?.message || String(e)}`;
+        }
       }
     };
   }
 
-  // Post comment
+  // Comment submit
   commentBtn.onclick = async () => {
+    
     try {
       commentMsg.textContent = "Posting...";
-
       const body = (commentText.value || "").trim();
       if (!body) {
         commentMsg.textContent = "Comment cannot be empty.";
         return;
       }
 
-      // Use the checkbox state *right now* for this comment’s display name
-      const anonNow = !!commentAnonToggle?.checked;
+      // Use current toggle position (UI) as source of truth
+      
+      const status = await getMyAuthorStatus(); // { user_id, display_name, approved, is_anonymous } or null
 
-      // Pull display_name from your safe RPC
-      const status = await getMyAuthorStatus();
-      const name = status?.display_name || "Member";
-
-      const displayName = anonNow ? "Chose Anonymity" : name;
+      const displayName = status?.is_anonymous
+      ? "Chose Anonymity"
+      : (status?.display_name || "Member");
 
       await addComment(post.id, body, displayName);
+
 
       commentText.value = "";
       commentMsg.textContent = "Posted.";
@@ -218,7 +184,7 @@ try {
   const post = await getPostById(id);
   if (!post) throw new Error("Post not found.");
 
-  // Draft access control: only author can view drafts
+  // Draft access control: author only (status = 'draft')
   if (post.status !== "published") {
     const session = await getSession();
     const isAuthor = session?.user?.id && session.user.id === post.author_id;
@@ -226,8 +192,18 @@ try {
   }
 
   postTitle.textContent = post.title || "";
-  setPostMeta(post);
 
+// NEW: fill the spans inside #postMeta instead of overwriting it
+const authorSpan = postMeta.querySelector(".author-name");
+const dateSpan = postMeta.querySelector(".post-date");
+
+if (authorSpan) authorSpan.textContent = ""; // leave empty; CSS will show "Chose Anonymity"
+if (dateSpan) {
+  dateSpan.textContent =
+    `Published: ${fmtDate(post.created_at)}` + (post.status === "published" ? "" : " (DRAFT)");
+}
+
+  // body is plain text in your schema; render safely
   postContent.innerHTML = `<div style="white-space:pre-wrap;line-height:1.6">${escapeHtml(post.body || "")}</div>`;
 
   await renderFiles(post.id);
@@ -242,6 +218,4 @@ try {
   commentGate.textContent = "";
   commentBtn.disabled = true;
   commentText.disabled = true;
-
-  if (commentAnonPanel) commentAnonPanel.style.display = "none";
 }
