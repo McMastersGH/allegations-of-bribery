@@ -1,174 +1,144 @@
 // js/write.js
-import { getSession, getMyProfile, getMyAuthorStatus, setMyAnonymity, wireAuthButtons } from "./auth.js";
+import { wireAuthButtons, getSession, getMyAuthorStatus, setMyAnonymity, isApprovedAuthor } from "./auth.js";
 import { createPost } from "./blogApi.js";
 import { uploadAndRecordFiles } from "./uploader.js";
 
-const statusMsg = document.getElementById("statusMsg");
-const titleEl = document.getElementById("title");
-const contentEl = document.getElementById("content");
-const filesEl = document.getElementById("files");
-const publishBtn = document.getElementById("publishBtn");
-const saveDraftBtn = document.getElementById("saveDraftBtn");
-const anonToggle = document.getElementById("anonToggle");
-const anonStatus = document.getElementById("anonStatus");
-
-const gate = document.getElementById("writeGate");
-const form = document.getElementById("writeForm");
-
-function setStatus(t) {
-  if (statusMsg) statusMsg.textContent = t || "";
+function getForumSlug() {
+  const u = new URL(window.location.href);
+  return u.searchParams.get("forum") || "";
 }
 
-function showGate(html) {
-  if (gate) {
-    gate.style.display = "block";
-    gate.innerHTML = html;
-  }
-  if (form) form.style.display = "none";
-}
-
-function showForm() {
-  if (gate) gate.style.display = "none";
-  if (form) form.style.display = "block";
-}
-
-function escapeHtml(s) {
-  return String(s ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function htmlFromPlainText(text) {
-  const safe = escapeHtml(text).replace(/\n/g, "<br>");
-  return `<div style="white-space:normal;line-height:1.6">${safe}</div>`;
-}
-
-async function wireAnonToggle() {
-  if (!anonToggle || !anonStatus) return;
-
-  try {
-    const st = await getMyAuthorStatus(); // { user_id, display_name, approved, is_anonymous }
-    const isAnon = !!st?.is_anonymous;
-
-    anonToggle.checked = isAnon;
-    anonStatus.textContent = isAnon
-      ? "Anonymity is ON. Posts/comments will show “Chose Anonymity”."
-      : "Anonymity is OFF. Your display name will be shown when available.";
-
-    anonToggle.onchange = async () => {
-      anonToggle.disabled = true;
-      anonStatus.textContent = "Saving…";
-      await setMyAnonymity(anonToggle.checked);
-      anonStatus.textContent = anonToggle.checked
-        ? "Saved. Anonymity is ON."
-        : "Saved. Anonymity is OFF.";
-      anonToggle.disabled = false;
-    };
-  } catch (e) {
-    anonStatus.textContent = `Anonymity toggle error: ${e?.message || String(e)}`;
-    anonToggle.disabled = true;
-  }
-}
-
-async function createAndMaybeUpload({ isPublished }) {
-  const session = await getSession();
-  if (!session) return; // gated already
-
-  const status = await getMyAuthorStatus(); // { user_id, display_name, approved, is_anonymous }
-    if (!status?.approved) {
-    setStatus("Your account is not approved to publish. Ask the admin to approve your account in Supabase.");
-  return;
-}
-
-  const authorLabel = status.is_anonymous
-  ? "Chose Anonymity"
-  : (status.display_name || "Member");
-
-  const title = (titleEl?.value || "").trim();
-  const raw = (contentEl?.value || "").trim();
-  const files = filesEl?.files ? Array.from(filesEl.files) : [];
-
-  if (!title) throw new Error("Title is required.");
-  if (!raw && files.length === 0) throw new Error("Provide post text and/or upload at least one document.");
-
-  const forumSlug = new URLSearchParams(window.location.search).get("forum") || "general-topics";
-  const contentText = raw || "";
-  const contentHtml = raw ? htmlFromPlainText(raw) : `<div class="muted">Documents attached below.</div>`;
-
-  const created = await createPost({
-    title,
-    body: contentText,
-    forum_slug: new URLSearchParams(window.location.search).get("forum") || "general-topics",
-    author_id: status.user_id,
-    author_label: authorLabel,
-    status: isPublished ? "published" : "draft"
+document.addEventListener("DOMContentLoaded", async () => {
+  await wireAuthButtons({
+    loginLinkId: "loginLink",
+    registerLinkId: "registerLink",
+    logoutBtnId: "logoutBtn",
+    userBadgeId: "userBadge",
+    userMenuBtnId: "userMenuBtn",
+    logoutRedirect: "./index.html",
   });
 
-  if (files.length) {
-    await uploadAndRecordFiles({
-      postId: created.id,
-      authorId: profile.user_id,
-      files
+  const forumSlug = getForumSlug();
+
+  const statusMsg = document.getElementById("statusMsg");
+  const titleEl = document.getElementById("title");
+  const contentEl = document.getElementById("content");
+  const filesEl = document.getElementById("files");
+  const publishBtn = document.getElementById("publishBtn");
+  const saveDraftBtn = document.getElementById("saveDraftBtn");
+
+  const anonToggle = document.getElementById("anonToggle");
+  const anonStatus = document.getElementById("anonStatus");
+
+  const writeGate = document.getElementById("writeGate");
+  const writeForm = document.getElementById("writeForm");
+
+  // Require a forum slug so posts attach to a forum
+  if (!forumSlug) {
+    if (statusMsg) statusMsg.textContent = "Missing forum parameter. Go back and click New Thread from a forum.";
+    if (writeGate) writeGate.style.display = "block";
+    if (writeForm) writeForm.style.display = "none";
+    return;
+  }
+
+  // Load session + author status
+  const session = await getSession();
+  const status = await getMyAuthorStatus();
+
+  // Not signed in: read-only / block authoring
+  if (!session) {
+    if (statusMsg) statusMsg.textContent = "You must be logged in to create a thread.";
+    if (writeGate) writeGate.style.display = "block";
+    if (writeForm) writeForm.style.display = "none";
+    return;
+  }
+
+  // Signed in but not approved: read-only / block authoring
+  // (You said: logged out is read-only; this matches that pattern.)
+  const approved = await isApprovedAuthor(session.user.id);
+  if (!approved) {
+    if (statusMsg) statusMsg.textContent = "Your account is not approved to post yet.";
+    if (writeGate) writeGate.style.display = "block";
+    if (writeForm) writeForm.style.display = "none";
+    return;
+  }
+
+  // Approved: show form
+  if (writeGate) writeGate.style.display = "none";
+  if (writeForm) writeForm.style.display = "block";
+
+  // Anonymity toggle (optional)
+  if (anonToggle) {
+    anonToggle.checked = !!status.is_anonymous;
+    if (anonStatus) anonStatus.textContent = anonToggle.checked ? "Anonymous posting is ON" : "Anonymous posting is OFF";
+
+    anonToggle.addEventListener("change", async () => {
+      const v = !!anonToggle.checked;
+      const res = await setMyAnonymity(v);
+      if (anonStatus) anonStatus.textContent = res.ok ? (v ? "Anonymous posting is ON" : "Anonymous posting is OFF") : (res.error || "Failed to update anonymity.");
     });
   }
 
-  window.location.href = `./post.html?id=${encodeURIComponent(created.id)}`;
-}
+  async function createAndMaybeUpload(isDraft) {
+    const title = (titleEl?.value || "").trim();
+    const body = (contentEl?.value || "").trim();
 
-// ---- BOOTSTRAP (one-time) ----
-await wireAuthButtons({ loginLinkId: "loginLink", logoutBtnId: "logoutBtn" });
+    if (!title || !body) {
+      if (statusMsg) statusMsg.textContent = "Title and content are required.";
+      return;
+    }
 
-const session = await getSession();
-if (!session) {
-  showGate(`
-    <h2>Login Required</h2>
-    <p class="muted">You must be logged in to create a post.</p>
-    <a class="btn" href="./login.html">Login</a>
-  `);
-  // Stop initialization; keep page clean.
-} else {
-  const st = await getMyAuthorStatus();
-  if (!st?.approved) {
-    showGate(`
-      <h2>Not Approved</h2>
-      <p class="muted">Your account is not approved to publish threads yet.</p>
-      <p class="muted">If you believe this is an error, contact the site administrator.</p>
-    `);
-  } else {
-    showForm();
-    setStatus("Approved author. You can publish.");
-    await wireAnonToggle();
+    if (statusMsg) statusMsg.textContent = isDraft ? "Saving draft..." : "Publishing...";
+
+    const created = await createPost({
+      forum_slug: forumSlug,
+      title,
+      body,
+      is_draft: !!isDraft,
+      is_anonymous: !!anonToggle?.checked,
+    });
+
+    const files = Array.from(filesEl?.files || []);
+    if (files.length) {
+      // ✅ FIX: use the resolved status/session, not a missing profile variable
+      await uploadAndRecordFiles({
+        postId: created.id,
+        authorId: status.user_id,
+        files,
+      });
+    }
+
+    if (statusMsg) statusMsg.textContent = isDraft ? "Draft saved." : "Published.";
+
+    // Back to the forum
+    window.location.href = `./forum.html?forum=${encodeURIComponent(forumSlug)}`;
   }
-}
 
-// ---- BUTTON HANDLERS ----
-publishBtn?.addEventListener("click", async () => {
-  publishBtn.disabled = true;
-  saveDraftBtn.disabled = true;
-  try {
-    setStatus("Publishing...");
-    await createAndMaybeUpload({ isPublished: true });
-  } catch (e) {
-    setStatus(`Error: ${e?.message || String(e)}`);
-  } finally {
-    publishBtn.disabled = false;
-    saveDraftBtn.disabled = false;
+  if (publishBtn) {
+    publishBtn.addEventListener("click", async () => {
+      try {
+        publishBtn.disabled = true;
+        await createAndMaybeUpload(false);
+      } catch (e) {
+        console.error(e);
+        if (statusMsg) statusMsg.textContent = `Publish failed: ${String(e)}`;
+      } finally {
+        publishBtn.disabled = false;
+      }
+    });
   }
-});
 
-saveDraftBtn?.addEventListener("click", async () => {
-  publishBtn.disabled = true;
-  saveDraftBtn.disabled = true;
-  try {
-    setStatus("Saving draft...");
-    await createAndMaybeUpload({ isPublished: false });
-  } catch (e) {
-    setStatus(`Error: ${e?.message || String(e)}`);
-  } finally {
-    publishBtn.disabled = false;
-    saveDraftBtn.disabled = false;
+  if (saveDraftBtn) {
+    saveDraftBtn.addEventListener("click", async () => {
+      try {
+        saveDraftBtn.disabled = true;
+        await createAndMaybeUpload(true);
+      } catch (e) {
+        console.error(e);
+        if (statusMsg) statusMsg.textContent = `Save failed: ${String(e)}`;
+      } finally {
+        saveDraftBtn.disabled = false;
+      }
+    });
   }
 });

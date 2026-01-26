@@ -5,13 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Forum — Allegations of Bribery</title>
 
-  <!-- Favicon -->
   <link rel="icon" href="./favicon.ico" />
-
-  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./css/styles.css" />
 
-  <!-- Match index.html palette -->
   <script>
     tailwind.config = {
       theme: {
@@ -26,13 +23,10 @@
       }
     }
   </script>
-
-  <!-- Keep your btn/ghost/user-badge classes working -->
-  <link rel="stylesheet" href="./css/styles.css" />
 </head>
 
 <body class="bg-page text-slate-200 antialiased">
-  <!-- Top Bar (auth controls normalized to index.html) -->
+  <!-- Top Bar (match index.html style) -->
   <header class="sticky top-0 z-50 border-b border-stroke bg-panel/95 backdrop-blur">
     <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
       <div class="flex items-center gap-3">
@@ -41,19 +35,16 @@
           alt="Allegations of Bribery"
           class="h-8 w-8 rounded bg-slate-700 object-contain p-1"
         />
-        <a href="./index.html" class="text-lg font-semibold tracking-tight">
-          Allegations of Bribery
-        </a>
+        <a href="./index.html" class="text-lg font-semibold tracking-tight">Allegations of Bribery</a>
       </div>
 
       <nav class="hidden items-center gap-5 text-sm text-slate-300 md:flex">
         <a class="hover:text-white" href="./index.html">Forums</a>
         <a class="hover:text-white" href="#">Documents</a>
         <a class="hover:text-white" href="#">Cases</a>
-        <a class="hover:text-white" href="#">What’s new</a>
       </nav>
 
-      <!-- Auth controls (IDs must match auth.js defaults) -->
+      <!-- Auth controls (JS toggles these) -->
       <div class="flex items-center gap-3">
         <a
           id="loginLink"
@@ -93,21 +84,35 @@
     </div>
   </header>
 
-  <main class="mx-auto max-w-6xl px-4 py-6">
+  <main class="mx-auto max-w-6xl px-4 py-6 space-y-5">
+    <!-- Forum header card -->
     <div class="rounded-lg border border-stroke bg-panel p-5">
       <div class="flex items-start justify-between gap-4">
         <div>
           <h1 id="forumTitle" class="text-xl font-semibold">Forum</h1>
           <p id="forumDesc" class="mt-1 text-sm text-slate-400"></p>
         </div>
-        <a href="./index.html" class="text-sm text-sky-300 hover:text-sky-200">← Back</a>
+        <a href="index.html" class="text-sm text-sky-300 hover:text-sky-200">← Back</a>
       </div>
     </div>
 
-    <div class="mt-5 rounded-lg border border-stroke bg-panel2 p-5">
-      <div class="flex items-center justify-between">
-        <h2 class="text-sm font-semibold">Threads</h2>
-        <div id="status" class="text-xs text-slate-500"></div>
+    <!-- Threads card -->
+    <div class="rounded-lg border border-stroke bg-panel2 p-5">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <h2 class="text-sm font-semibold">Threads</h2>
+          <div id="status" class="text-xs text-slate-500"></div>
+        </div>
+
+        <!-- ONLY NECESSARY CHANGE: Write/New Thread button inside the forum -->
+        <a
+          id="newThreadBtn"
+          href="./write.html"
+          class="rounded-md bg-slate-800 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+          style="display:none;"
+        >
+          New thread
+        </a>
       </div>
 
       <div id="threads" class="mt-4 divide-y divide-stroke">
@@ -116,19 +121,37 @@
     </div>
   </main>
 
-  <!-- Preserve your existing next= behavior -->
-  <script>
-    const link = document.getElementById("loginLink");
-    if (link) {
-      const next = encodeURIComponent(window.location.pathname + window.location.search);
-      link.href = `./login.html?next=${next}`;
-    }
-  </script>
-
-  <!-- Auth UI toggle (same as index.html) -->
+  <!-- Preserve next= for login, AND pass forum slug to write.html -->
   <script type="module">
-    import { wireAuthButtons } from "./js/auth.js";
-    wireAuthButtons();
+    import { wireAuthButtons, getSession } from "./js/auth.js";
+
+    // 1) Normal auth UI
+    await wireAuthButtons();
+
+    // 2) Login should return to THIS forum page
+    const loginLink = document.getElementById("loginLink");
+    if (loginLink) {
+      const next = encodeURIComponent(window.location.pathname + window.location.search);
+      loginLink.href = `./login.html?next=${next}`;
+    }
+
+    // 3) New thread button: show only when logged in, and carry forum slug
+    const newThreadBtn = document.getElementById("newThreadBtn");
+    if (newThreadBtn) {
+      try {
+        const session = await getSession();
+        if (!session) {
+          newThreadBtn.style.display = "none";
+        } else {
+          const u = new URL(window.location.href);
+          const forum = u.searchParams.get("forum") || "";
+          newThreadBtn.href = forum ? `./write.html?forum=${encodeURIComponent(forum)}` : "./write.html";
+          newThreadBtn.style.display = "inline-flex";
+        }
+      } catch {
+        newThreadBtn.style.display = "none";
+      }
+    }
   </script>
 
   <script type="module" src="js/forum.js"></script>

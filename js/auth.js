@@ -40,13 +40,14 @@ export async function signUp(
       email,
       password,
       options: {
+        // Marker helps login page show a friendly message
         emailRedirectTo: `${window.location.origin}/login.html?from=confirm`,
         data: {
           display_name: displayName || "",
           terms_accepted_at: consent?.termsAccepted ? nowIso : null,
-          privacy_accepted_at: consent?.privacyAccepted ? nowIso : null
-        }
-      }
+          privacy_accepted_at: consent?.privacyAccepted ? nowIso : null,
+        },
+      },
     });
 
     if (error) return { ok: false, error: error.message };
@@ -58,14 +59,14 @@ export async function signUp(
   }
 }
 
-// Used by signup.html
+// ✅ used by signup.html
 export async function resendSignupEmail(email) {
   const sb = getSupabaseClient();
   try {
     const { error } = await sb.auth.resend({
       type: "signup",
       email,
-      options: { emailRedirectTo: `${window.location.origin}/login.html?from=confirm` }
+      options: { emailRedirectTo: `${window.location.origin}/login.html?from=confirm` },
     });
     if (error) return { ok: false, error: error.message };
     return { ok: true };
@@ -74,119 +75,91 @@ export async function resendSignupEmail(email) {
   }
 }
 
-/**
- * Hard logout for static sites: clear Supabase auth + remove all storage keys for project ref.
- */
 export async function logout() {
   const sb = getSupabaseClient();
-
-  // project ref derived from https://ovsshqgcfucwzcgqltes.supabase.co
-  const PROJECT_REF = "ovsshqgcfucwzcgqltes";
-  const PREFIX = `sb-${PROJECT_REF}-`;
-
-  try {
-    const { error } = await sb.auth.signOut({ scope: "local" });
-    if (error) console.warn("Supabase signOut error:", error.message);
-  } catch (e) {
-    console.warn("Supabase signOut threw:", e);
-  }
-
-  const clearStore = (store) => {
-    try {
-      const keys = [];
-      for (let i = 0; i < store.length; i++) {
-        const k = store.key(i);
-        if (k && k.startsWith(PREFIX)) keys.push(k);
-      }
-      keys.forEach((k) => store.removeItem(k));
-    } catch {}
-  };
-
-  clearStore(localStorage);
-  clearStore(sessionStorage);
-
+  const { error } = await sb.auth.signOut();
+  if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 
-/**
- * ✅ REQUIRED BY write.js, post.js, header.js
- * Returns the current user's row from public.authors (if it exists).
- * Resilient to older schemas that might not have is_anonymous.
- */
-export async function getMyAuthorStatus() {
-  const sb = getSupabaseClient();
-  const session = await getSession();
-  const uid = session?.user?.id;
-  if (!uid) return null;
+// --- Author status helpers (used by write.html / write.js) ---
 
-  // Try with is_anonymous first (newer schema)
-  let { data, error } = await sb
+// Returns the current user's row from public.authors (or null if not present)
+export async function getMyProfile() {
+  const session = await getSession();
+  if (!session?.user?.id) return null;
+
+  const sb = getSupabaseClient();
+  const { data, error } = await sb
     .from("authors")
-    .select("user_id, email, display_name, approved, is_anonymous, created_at")
-    .eq("user_id", uid)
+    .select("user_id, display_name, approved, is_anonymous")
+    .eq("user_id", session.user.id)
     .maybeSingle();
 
-  // If column doesn't exist, fall back safely
-  if (error && /column .*is_anonymous/i.test(error.message || "")) {
-    const fallback = await sb
-      .from("authors")
-      .select("user_id, email, display_name, approved, created_at")
-      .eq("user_id", uid)
-      .maybeSingle();
-    data = fallback.data;
-    error = fallback.error;
-    if (data && typeof data.is_anonymous === "undefined") data.is_anonymous = false;
-  }
-
   if (error) throw error;
-  if (data && typeof data.is_anonymous === "undefined") data.is_anonymous = false;
   return data || null;
 }
 
-/**
- * ✅ Compatibility export (some pages import getMyProfile)
- * For this site, the profile information is coming from public.authors.
- */
-export async function getMyProfile() {
-  return await getMyAuthorStatus();
+// Returns an object describing the author status used by write gating
+export async function getMyAuthorStatus() {
+  const session = await getSession();
+  if (!session?.user?.id) {
+    return { ok: false, signed_in: false, approved: false, is_anonymous: false, user_id: null };
+  }
+
+  try {
+    const p = await getMyProfile();
+    return {
+      ok: true,
+      signed_in: true,
+      approved: !!p?.approved,
+      is_anonymous: !!p?.is_anonymous,
+      user_id: session.user.id,
+      display_name: p?.display_name || null,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      signed_in: true,
+      approved: false,
+      is_anonymous: false,
+      user_id: session.user.id,
+      error: String(e),
+    };
+  }
 }
 
-/**
- * ✅ REQUIRED BY write.js, post.js
- * Persist account-level anonymity preference (if authors.is_anonymous exists).
- */
-export async function setMyAnonymity(isAnonymous) {
+export async function isApprovedAuthor(userId) {
   const sb = getSupabaseClient();
-  const session = await getSession();
-  const uid = session?.user?.id;
-  if (!uid) throw new Error("Not signed in.");
+  const id = userId || (await getSession())?.user?.id;
+  if (!id) return false;
 
+  const { data, error } = await sb.from("authors").select("approved").eq("user_id", id).maybeSingle();
+  if (error) throw error;
+  return !!data?.approved;
+}
+
+export async function setMyAnonymity(isAnonymous) {
+  const session = await getSession();
+  if (!session?.user?.id) return { ok: false, error: "Not signed in." };
+
+  const sb = getSupabaseClient();
   const { error } = await sb
     .from("authors")
-    .update({ is_anonymous: Boolean(isAnonymous) })
-    .eq("user_id", uid);
+    .update({ is_anonymous: !!isAnonymous })
+    .eq("user_id", session.user.id);
 
-  // If schema doesn't support it, fail with a clear message
-  if (error && /column .*is_anonymous/i.test(error.message || "")) {
-    throw new Error("Anonymity setting is not available (authors.is_anonymous column not found).");
-  }
-  if (error) throw error;
-
+  if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 
 /**
  * Internal: apply logged-in / logged-out UI state.
+ * (Used both on initial load and onAuthStateChange.)
  */
-function applyAuthUI({
-  session,
-  loginLink,
-  registerLink,
-  logoutBtn,
-  userBadge,
-  userMenuBtn,
-}) {
+function applyAuthUI({ session, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn }) {
   if (!session) {
+    // Logged out
     if (loginLink) loginLink.style.display = "inline-flex";
     if (registerLink) registerLink.style.display = "inline-flex";
     if (logoutBtn) logoutBtn.style.display = "none";
@@ -195,6 +168,7 @@ function applyAuthUI({
     return;
   }
 
+  // Logged in
   if (loginLink) loginLink.style.display = "none";
   if (registerLink) registerLink.style.display = "none";
   if (logoutBtn) logoutBtn.style.display = "inline-flex";
@@ -214,7 +188,7 @@ function applyAuthUI({
 
 /**
  * Show/hide Login/Register vs Logout + show logged-in user badge
- * ✅ Also listens to auth changes and updates instantly.
+ * ✅ Now also listens to auth changes and updates instantly.
  */
 export async function wireAuthButtons({
   loginLinkId = "loginLink",
@@ -230,41 +204,35 @@ export async function wireAuthButtons({
   const userBadge = document.getElementById(userBadgeId);
   const userMenuBtn = document.getElementById(userMenuBtnId);
 
+  // If the page doesn't have any auth UI, do nothing.
   if (!loginLink && !registerLink && !logoutBtn && !userBadge && !userMenuBtn) return;
 
-  const sb = getSupabaseClient();
-
-  if (document.documentElement.dataset.authWired === "1") {
-    try {
-      const session = await getSession();
-      applyAuthUI({ session, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn });
-    } catch {
-      applyAuthUI({ session: null, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn });
-    }
-    return;
-  }
-  document.documentElement.dataset.authWired = "1";
-
-  // Initial render
+  // Initial paint
+  let session = null;
   try {
-    const session = await getSession();
-    applyAuthUI({ session, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn });
+    session = await getSession();
   } catch {
-    applyAuthUI({ session: null, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn });
+    session = null;
   }
+  applyAuthUI({ session, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn });
 
-  // Wire Logout once
+  // Wire logout once
   if (logoutBtn && !logoutBtn.dataset.wired) {
     logoutBtn.dataset.wired = "1";
     logoutBtn.addEventListener("click", async (e) => {
       e.preventDefault();
       await logout();
-      setTimeout(() => (window.location.href = logoutRedirect), 150);
+      window.location.href = logoutRedirect;
     });
   }
 
-  // Live updates on auth state changes
-  sb.auth.onAuthStateChange((_event, session) => {
-    applyAuthUI({ session, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn });
-  });
+  // Live updates on auth changes
+  try {
+    const sb = getSupabaseClient();
+    sb.auth.onAuthStateChange((_event, newSession) => {
+      applyAuthUI({ session: newSession, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn });
+    });
+  } catch {
+    // ignore
+  }
 }
