@@ -11,7 +11,7 @@
   <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Match index.html palette (ONLY what’s necessary for consistent styling) -->
+  <!-- Match index.html palette -->
   <script>
     tailwind.config = {
       theme: {
@@ -27,16 +27,15 @@
     }
   </script>
 
-  <!-- Keep your existing CSS classes (btn/ghost/user-badge) working -->
+  <!-- Keep your btn/ghost/user-badge classes working -->
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 
 <body class="bg-page text-slate-200 antialiased">
-  <!-- Top Bar (styled like index.html) -->
+  <!-- Top Bar (auth controls normalized to index.html) -->
   <header class="sticky top-0 z-50 border-b border-stroke bg-panel/95 backdrop-blur">
     <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
       <div class="flex items-center gap-3">
-        <!-- Same header icon treatment as index.html -->
         <img
           src="./assets/ladyjusticebribed.png"
           alt="Allegations of Bribery"
@@ -54,7 +53,7 @@
         <a class="hover:text-white" href="#">What’s new</a>
       </nav>
 
-      <!-- Auth controls (IDs match your existing auth.js wireAuthButtons defaults) -->
+      <!-- Auth controls (IDs must match auth.js defaults) -->
       <div class="flex items-center gap-3">
         <a
           id="loginLink"
@@ -95,7 +94,6 @@
   </header>
 
   <main class="mx-auto max-w-6xl px-4 py-6">
-    <!-- Forum header panel (already close; only swapped colors to match index palette) -->
     <div class="rounded-lg border border-stroke bg-panel p-5">
       <div class="flex items-start justify-between gap-4">
         <div>
@@ -106,7 +104,6 @@
       </div>
     </div>
 
-    <!-- Threads panel -->
     <div class="mt-5 rounded-lg border border-stroke bg-panel2 p-5">
       <div class="flex items-center justify-between">
         <h2 class="text-sm font-semibold">Threads</h2>
@@ -119,7 +116,7 @@
     </div>
   </main>
 
-  <!-- Keep your existing “next=” behavior -->
+  <!-- Preserve your existing next= behavior -->
   <script>
     const link = document.getElementById("loginLink");
     if (link) {
@@ -128,7 +125,7 @@
     }
   </script>
 
-  <!-- Ensure auth UI toggles on this page (minimal + consistent with index.html behavior) -->
+  <!-- Auth UI toggle (same as index.html) -->
   <script type="module">
     import { wireAuthButtons } from "./js/auth.js";
     wireAuthButtons();

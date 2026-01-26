@@ -20,9 +20,19 @@
       </div>
     </div>
 
-    <nav class="nav">
+    <nav class="nav" style="display:flex; gap:10px; align-items:center;">
       <a class="btn ghost" href="./index.html">Home</a>
-      <a class="btn ghost" href="./signup.html">Register</a>
+
+      <!-- Normalized auth controls (same IDs as index/forum/signup) -->
+      <a class="btn ghost" href="./login.html" id="loginLink">Log in</a>
+      <a class="btn ghost" href="./signup.html" id="registerLink">Register</a>
+
+      <span id="userBadge" class="user-badge" style="display:none;">
+        <span class="dot" aria-hidden="true" style="display:inline-block;width:8px;height:8px;border-radius:999px;margin-right:6px;background:#34d399;"></span>
+        <span id="userMenuBtn" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      </span>
+
+      <button class="btn ghost" id="logoutBtn" type="button" style="display:none;">Logout</button>
     </nav>
   </header>
 
@@ -65,6 +75,12 @@
       </p>
     </section>
   </main>
+
+  <!-- Normalize auth UI toggling -->
+  <script type="module">
+    import { wireAuthButtons } from "./js/auth.js";
+    wireAuthButtons();
+  </script>
 
   <!-- MUST be module -->
   <script type="module" src="./js/login.js"></script>
