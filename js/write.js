@@ -1,143 +1,163 @@
 // js/write.js
-import { wireAuthButtons, getSession, getMyAuthorStatus, setMyAnonymity, isApprovedAuthor } from "./auth.js";
-import { createPost } from "./blogApi.js";
-import { uploadAndRecordFiles } from "./uploader.js";
+import { wireAuthButtons, getUser } from "./auth.js";
+import { createPost, ensureAuthorProfile, getMyProfile } from "./blogApi.js";
 
-function getForumSlug() {
+function qs(id) {
+  return document.getElementById(id);
+}
+
+function cleanError(err) {
+  if (!err) return "Unknown error.";
+  if (typeof err === "string") return err;
+  if (err.message) return err.message;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+
+function setStatus(msg, isError = false) {
+  const el = qs("status");
+  if (!el) return;
+  el.textContent = msg || "";
+  el.style.color = isError ? "#f87171" : ""; // red-400
+}
+
+function getForumFromUrl() {
   const u = new URL(window.location.href);
-  return u.searchParams.get("forum") || "";
+  return (u.searchParams.get("forum") || "").trim();
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  await wireAuthButtons({
-    loginLinkId: "loginLink",
-    registerLinkId: "registerLink",
-    logoutBtnId: "logoutBtn",
-    userBadgeId: "userBadge",
-    userMenuBtnId: "userMenuBtn",
-    logoutRedirect: "./index.html",
-  });
+  // Header auth UI (if present on this page)
+  try {
+    await wireAuthButtons();
+  } catch {
+    // ignore
+  }
 
-  const forumSlug = getForumSlug();
+  const forumSelect = qs("forumSelect");
+  const titleEl = qs("title");
+  const bodyEl = qs("body");
+  const anonEl = qs("anon");
+  const publishBtn = qs("publishBtn");
+  const cancelBtn = qs("cancelBtn");
 
-  const statusMsg = document.getElementById("statusMsg");
-  const titleEl = document.getElementById("title");
-  const contentEl = document.getElementById("content");
-  const filesEl = document.getElementById("files");
-  const publishBtn = document.getElementById("publishBtn");
-  const saveDraftBtn = document.getElementById("saveDraftBtn");
+  // If coming from a specific forum link, preselect it
+  const forumFromUrl = getForumFromUrl();
+  if (forumSelect && forumFromUrl) {
+    // If the option exists, set it; if not, leave as-is
+    const hasOption = Array.from(forumSelect.options || []).some((o) => o.value === forumFromUrl);
+    if (hasOption) forumSelect.value = forumFromUrl;
+  }
 
-  const anonToggle = document.getElementById("anonToggle");
-  const anonStatus = document.getElementById("anonStatus");
-
-  const writeGate = document.getElementById("writeGate");
-  const writeForm = document.getElementById("writeForm");
-
-  // Require a forum slug so posts attach to a forum
-  if (!forumSlug) {
-    if (statusMsg) statusMsg.textContent = "Missing forum parameter. Go back and click New Thread from a forum.";
-    if (writeGate) writeGate.style.display = "block";
-    if (writeForm) writeForm.style.display = "none";
+  // Must be logged in to write
+  const user = await getUser();
+  if (!user) {
+    setStatus("Please log in to create a thread.", true);
+    if (publishBtn) publishBtn.disabled = true;
     return;
   }
 
-  // Load session + author status
-  const session = await getSession();
-  const status = await getMyAuthorStatus();
-
-  // Not signed in: read-only / block authoring
-  if (!session) {
-    if (statusMsg) statusMsg.textContent = "You must be logged in to create a thread.";
-    if (writeGate) writeGate.style.display = "block";
-    if (writeForm) writeForm.style.display = "none";
+  // Ensure author profile exists and fetch it
+  let myProfile = null;
+  try {
+    await ensureAuthorProfile();
+    myProfile = await getMyProfile();
+  } catch (err) {
+    setStatus(`Unable to load author profile: ${cleanError(err)}`, true);
+    if (publishBtn) publishBtn.disabled = true;
     return;
   }
 
-  // Signed in but not approved: read-only / block authoring
-  // (You said: logged out is read-only; this matches that pattern.)
-  const approved = await isApprovedAuthor(session.user.id);
-  if (!approved) {
-    if (statusMsg) statusMsg.textContent = "Your account is not approved to post yet.";
-    if (writeGate) writeGate.style.display = "block";
-    if (writeForm) writeForm.style.display = "none";
+  // If the profile cannot be read due to RLS, myProfile may be null
+  if (!myProfile || !myProfile.user_id) {
+    setStatus("Unable to load author profile: permission denied for table authors", true);
+    if (publishBtn) publishBtn.disabled = true;
     return;
   }
 
-  // Approved: show form
-  if (writeGate) writeGate.style.display = "none";
-  if (writeForm) writeForm.style.display = "block";
+  // Read-only if not approved
+  if (!myProfile.approved) {
+    setStatus(
+      "Read-only: your account is not approved to publish yet. You can browse forums, but you cannot post.",
+      true
+    );
+    if (publishBtn) publishBtn.disabled = true;
+  } else {
+    setStatus("");
+    if (publishBtn) publishBtn.disabled = false;
+  }
 
-  // Anonymity toggle (optional)
-  if (anonToggle) {
-    anonToggle.checked = !!status.is_anonymous;
-    if (anonStatus) anonStatus.textContent = anonToggle.checked ? "Anonymous posting is ON" : "Anonymous posting is OFF";
-
-    anonToggle.addEventListener("change", async () => {
-      const v = !!anonToggle.checked;
-      const res = await setMyAnonymity(v);
-      if (anonStatus) anonStatus.textContent = res.ok ? (v ? "Anonymous posting is ON" : "Anonymous posting is OFF") : (res.error || "Failed to update anonymity.");
+  // Cancel goes back to the forum page you came from (or index)
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const slug = (forumSelect?.value || forumFromUrl || "").trim();
+      window.location.href = slug ? `./forum.html?forum=${encodeURIComponent(slug)}` : "./index.html";
     });
   }
 
-  async function createAndMaybeUpload(isDraft) {
-    const title = (titleEl?.value || "").trim();
-    const body = (contentEl?.value || "").trim();
-
-    if (!title || !body) {
-      if (statusMsg) statusMsg.textContent = "Title and content are required.";
-      return;
-    }
-
-    if (statusMsg) statusMsg.textContent = isDraft ? "Saving draft..." : "Publishing...";
-
-    const created = await createPost({
-      forum_slug: forumSlug,
-      title,
-      body,
-      is_draft: !!isDraft,
-      is_anonymous: !!anonToggle?.checked,
-    });
-
-    const files = Array.from(filesEl?.files || []);
-    if (files.length) {
-      // ✅ FIX: use the resolved status/session, not a missing profile variable
-      await uploadAndRecordFiles({
-        postId: created.id,
-        authorId: status.user_id,
-        files,
-      });
-    }
-
-    if (statusMsg) statusMsg.textContent = isDraft ? "Draft saved." : "Published.";
-
-    // Back to the forum
-    window.location.href = `./forum.html?forum=${encodeURIComponent(forumSlug)}`;
-  }
-
+  // Publish
   if (publishBtn) {
-    publishBtn.addEventListener("click", async () => {
-      try {
-        publishBtn.disabled = true;
-        await createAndMaybeUpload(false);
-      } catch (e) {
-        console.error(e);
-        if (statusMsg) statusMsg.textContent = `Publish failed: ${String(e)}`;
-      } finally {
-        publishBtn.disabled = false;
-      }
-    });
-  }
+    publishBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
 
-  if (saveDraftBtn) {
-    saveDraftBtn.addEventListener("click", async () => {
+      if (!myProfile?.approved) {
+        setStatus(
+          "Read-only: your account is not approved to publish yet. You can browse forums, but you cannot post.",
+          true
+        );
+        return;
+      }
+
+      const forumSlug = (forumSelect?.value || forumFromUrl || "").trim();
+      const title = (titleEl?.value || "").trim();
+      const body = (bodyEl?.value || "").trim();
+      const isAnonymous = !!anonEl?.checked;
+
+      if (!forumSlug) {
+        setStatus("Please select a forum.", true);
+        return;
+      }
+      if (!title) {
+        setStatus("Title is required.", true);
+        return;
+      }
+      if (!body) {
+        setStatus("Body is required.", true);
+        return;
+      }
+
+      publishBtn.disabled = true;
+      setStatus("Publishing...");
+
       try {
-        saveDraftBtn.disabled = true;
-        await createAndMaybeUpload(true);
-      } catch (e) {
-        console.error(e);
-        if (statusMsg) statusMsg.textContent = `Save failed: ${String(e)}`;
-      } finally {
-        saveDraftBtn.disabled = false;
+        // IMPORTANT FIX:
+        // The old file referenced `profile.user_id` (undefined). Use `myProfile.user_id`.
+        const payload = {
+          forumSlug,
+          title,
+          body,
+          authorId: myProfile.user_id,          // always set (even if anonymous)
+          isAnonymous: isAnonymous,             // your DB can hide name when true
+          displayName: isAnonymous ? null : (myProfile.display_name || null),
+        };
+
+        const res = await createPost(payload);
+
+        if (!res?.ok) {
+          throw new Error(res?.error || "Publish failed.");
+        }
+
+        setStatus("Published.");
+        // After publish, go back to the forum
+        window.location.href = `./forum.html?forum=${encodeURIComponent(forumSlug)}`;
+      } catch (err) {
+        console.error("Publish error:", err);
+        setStatus(`Publish failed: ${cleanError(err)}`, true);
+        publishBtn.disabled = false;
       }
     });
   }

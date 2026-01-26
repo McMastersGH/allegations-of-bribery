@@ -1,101 +1,163 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <link rel="icon" href="./favicon.ico">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Write — Allegations of Bribery</title>
+
+  <link rel="icon" href="./favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="./css/styles.css" />
-</head>
-
-<body>
-  <header class="site-header">
-    <div class="brand">
-      <img src="./assets/ladyjusticebribed.png" alt="logo" class="logo" />
-      <div>
-        <h1>Allegations of Bribery</h1>
-        <p class="muted">Authoring</p>
-      </div>
-    </div>
-
-    <nav class="nav" style="display:flex; gap:10px; align-items:center;">
-      <a class="btn ghost" href="./index.html">Home</a>
-
-      <!-- Normalized auth controls (same IDs as other pages) -->
-      <a class="btn ghost" href="./login.html" id="loginLink">Log in</a>
-      <a class="btn ghost" href="./signup.html" id="registerLink">Register</a>
-
-      <span id="userBadge" class="user-badge" style="display:none;">
-        <span
-          class="dot"
-          aria-hidden="true"
-          style="display:inline-block;width:8px;height:8px;border-radius:999px;margin-right:6px;background:#34d399;"
-        ></span>
-        <span
-          id="userMenuBtn"
-          style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
-        ></span>
-      </span>
-
-      <button class="btn" id="logoutBtn" type="button" style="display:none;">Logout</button>
-    </nav>
-  </header>
-
-  <main class="container">
-    <!-- Gate area (write.js uses this) -->
-    <div id="writeGate" class="card" style="display:none;"></div>
-
-    <!-- REQUIRED: write.js expects #writeForm to show/hide -->
-    <section id="writeForm" class="card" style="display:none;">
-      <h2>Create Post</h2>
-      <p class="muted" id="statusMsg"></p>
-
-      <div class="panel" style="margin:14px 0">
-        <label class="checkrow">
-          <input type="checkbox" id="anonToggle">
-          <span>
-            Post anonymously<br>
-            <span class="small muted">
-              Your name will not be shown. Comments and posts will display “Chose Anonymity”.
-            </span>
-          </span>
-        </label>
-        <p id="anonStatus" class="small muted"></p>
-      </div>
-
-      <label class="label" for="title">Title</label>
-      <input id="title" class="input" placeholder="Post title..." />
-
-      <label class="label" for="content">Content (paste text here)</label>
-      <textarea id="content" class="textarea" rows="10" placeholder="Paste your text..."></textarea>
-
-      <label class="label" for="files">Attachments (PDF/DOC/DOCX/TXT/Images)</label>
-      <input id="files" class="input" type="file" multiple />
-
-      <div class="row gap">
-        <button id="publishBtn" class="btn" type="button">Publish</button>
-        <button id="saveDraftBtn" class="btn ghost" type="button">Save Draft</button>
-      </div>
-
-      <p class="muted">
-        Publishing requires an approved author account. If you are not approved, you will be blocked.
-      </p>
-    </section>
-  </main>
-
-  <script type="module">
-    import * as pdfjsLib from "./js/vendor/pdfjs/pdf.min.mjs";
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "./js/vendor/pdfjs/pdf.worker.min.mjs";
-    window.pdfjsLib = pdfjsLib;
-  </script>
 
   <script>
-    const link = document.getElementById("loginLink");
-    if (link) {
-      const next = encodeURIComponent(window.location.pathname + window.location.search);
-      link.href = `./login.html?next=${next}`;
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            panel: "#111827",
+            panel2: "#0b0e13",
+            stroke: "#1f2933",
+            page: "#0f1216"
+          }
+        }
+      }
     }
   </script>
+</head>
+
+<body class="bg-page text-slate-200 antialiased">
+  <!-- Top Bar -->
+  <header class="sticky top-0 z-50 border-b border-stroke bg-panel/95 backdrop-blur">
+    <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+      <div class="flex items-center gap-3">
+        <img
+          src="./assets/ladyjusticebribed.png"
+          alt="Allegations of Bribery"
+          class="h-8 w-8 rounded bg-slate-700 object-contain p-1"
+        />
+        <div class="text-lg font-semibold tracking-tight">Allegations of Bribery</div>
+      </div>
+
+      <nav class="hidden items-center gap-5 text-sm text-slate-300 md:flex">
+        <a class="hover:text-white" href="./index.html">Forums</a>
+        <a class="hover:text-white" href="#">Documents</a>
+        <a class="hover:text-white" href="#">Cases</a>
+      </nav>
+
+      <!-- Auth controls (JS toggles these) -->
+      <div class="flex items-center gap-3">
+        <a
+          id="loginLink"
+          href="./login.html"
+          class="rounded-md bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+        >
+          Log in
+        </a>
+
+        <a
+          id="registerLink"
+          href="./signup.html"
+          class="rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+        >
+          Register
+        </a>
+
+        <span
+          id="userBadge"
+          class="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-200"
+          style="display:none;"
+          title=""
+        >
+          <span class="inline-block h-2 w-2 rounded-full bg-emerald-400"></span>
+          <span id="userMenuBtn" class="max-w-[220px] truncate font-medium"></span>
+        </span>
+
+        <button
+          id="logoutBtn"
+          class="rounded-md border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+          type="button"
+          style="display:none;"
+        >
+          Logout
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-6xl px-4 py-6 space-y-5">
+    <!-- Context header -->
+    <section class="rounded-lg border border-stroke bg-panel p-5">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h1 id="pageTitle" class="text-xl font-semibold">New thread</h1>
+          <p id="forumHint" class="mt-1 text-sm text-slate-400"></p>
+        </div>
+
+        <a id="backLink" href="./index.html" class="text-sm text-sky-300 hover:text-sky-200">← Back</a>
+      </div>
+
+      <p id="statusMsg" class="mt-3 text-sm text-slate-300"></p>
+    </section>
+
+    <!-- Composer -->
+    <section class="rounded-lg border border-stroke bg-panel2 p-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-slate-200">Compose</h2>
+
+        <label class="inline-flex items-center gap-2 text-sm text-slate-300">
+          <input id="anonToggle" type="checkbox" class="h-4 w-4 rounded border-slate-600 bg-slate-900" />
+          Post anonymously
+        </label>
+      </div>
+
+      <div class="mt-4 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400" for="titleInput">
+            Title
+          </label>
+          <input
+            id="titleInput"
+            class="mt-2 w-full rounded-md border border-stroke bg-panel px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-600"
+            type="text"
+            placeholder="Thread title"
+            maxlength="140"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400" for="bodyInput">
+            Body
+          </label>
+          <textarea
+            id="bodyInput"
+            class="mt-2 w-full min-h-[240px] rounded-md border border-stroke bg-panel px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-600"
+            placeholder="Write your post..."
+          ></textarea>
+          <p class="mt-2 text-xs text-slate-500">Tip: keep it factual; add sources where possible.</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button
+            id="publishBtn"
+            type="button"
+            class="rounded-md bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+          >
+            Publish
+          </button>
+
+          <a
+            id="cancelBtn"
+            href="./index.html"
+            class="rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+          >
+            Cancel
+          </a>
+        </div>
+
+        <p id="errorMsg" class="text-sm text-rose-300"></p>
+      </div>
+    </section>
+  </main>
 
   <script type="module" src="./js/write.js"></script>
 </body>
