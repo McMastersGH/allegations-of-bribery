@@ -75,8 +75,7 @@ export async function resendSignupEmail(email) {
 }
 
 /**
- * ✅ FIX: hard logout for static sites
- * Clears Supabase auth session + removes ALL storage keys for this project ref.
+ * Hard logout for static sites: clear Supabase auth + remove all storage keys for project ref.
  */
 export async function logout() {
   const sb = getSupabaseClient();
@@ -85,7 +84,6 @@ export async function logout() {
   const PROJECT_REF = "ovsshqgcfucwzcgqltes";
   const PREFIX = `sb-${PROJECT_REF}-`;
 
-  // 1) Ask Supabase to sign out (local session)
   try {
     const { error } = await sb.auth.signOut({ scope: "local" });
     if (error) console.warn("Supabase signOut error:", error.message);
@@ -93,7 +91,6 @@ export async function logout() {
     console.warn("Supabase signOut threw:", e);
   }
 
-  // 2) Hard clear any persisted tokens/verifiers for this project
   const clearStore = (store) => {
     try {
       const keys = [];
@@ -112,7 +109,48 @@ export async function logout() {
 }
 
 /**
+ * Internal: apply logged-in / logged-out UI state.
+ * (Used both on initial load and onAuthStateChange.)
+ */
+function applyAuthUI({
+  session,
+  loginLink,
+  registerLink,
+  logoutBtn,
+  userBadge,
+  userMenuBtn,
+}) {
+  if (!session) {
+    // Logged out
+    if (loginLink) loginLink.style.display = "inline-flex";
+    if (registerLink) registerLink.style.display = "inline-flex";
+    if (logoutBtn) logoutBtn.style.display = "none";
+    if (userBadge) userBadge.style.display = "none";
+    if (userMenuBtn) userMenuBtn.textContent = "";
+    return;
+  }
+
+  // Logged in
+  if (loginLink) loginLink.style.display = "none";
+  if (registerLink) registerLink.style.display = "none";
+  if (logoutBtn) logoutBtn.style.display = "inline-flex";
+  if (userBadge) userBadge.style.display = "inline-flex";
+
+  const user = session.user;
+  const display =
+    (user?.user_metadata && (user.user_metadata.display_name || user.user_metadata.full_name)) ||
+    user?.email ||
+    "Account";
+
+  if (userMenuBtn) {
+    userMenuBtn.textContent = display;
+    userMenuBtn.title = user?.email || display;
+  }
+}
+
+/**
  * Show/hide Login/Register vs Logout + show logged-in user badge
+ * ✅ Now also listens to auth changes and updates instantly.
  */
 export async function wireAuthButtons({
   loginLinkId = "loginLink",
@@ -130,47 +168,42 @@ export async function wireAuthButtons({
 
   if (!loginLink && !registerLink && !logoutBtn && !userBadge && !userMenuBtn) return;
 
-  let session = null;
-  try {
-    session = await getSession();
-  } catch {
-    session = null;
-  }
+  const sb = getSupabaseClient();
 
-  if (!session) {
-    if (loginLink) loginLink.style.display = "inline-flex";
-    if (registerLink) registerLink.style.display = "inline-flex";
-    if (logoutBtn) logoutBtn.style.display = "none";
-    if (userBadge) userBadge.style.display = "none";
+  // Prevent double-wiring on the same page
+  if (document.documentElement.dataset.authWired === "1") {
+    // Still do a quick UI sync in case this was called twice
+    try {
+      const session = await getSession();
+      applyAuthUI({ session, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn });
+    } catch {
+      applyAuthUI({ session: null, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn });
+    }
     return;
   }
+  document.documentElement.dataset.authWired = "1";
 
-  if (loginLink) loginLink.style.display = "none";
-  if (registerLink) registerLink.style.display = "none";
-  if (logoutBtn) logoutBtn.style.display = "inline-flex";
-  if (userBadge) userBadge.style.display = "inline-flex";
-
-  const user = session.user;
-  const display =
-    (user?.user_metadata && (user.user_metadata.display_name || user.user_metadata.full_name)) ||
-    user?.email ||
-    "Account";
-
-  if (userMenuBtn) {
-    userMenuBtn.textContent = display;
-    userMenuBtn.title = user?.email || display;
+  // 1) Initial render
+  try {
+    const session = await getSession();
+    applyAuthUI({ session, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn });
+  } catch {
+    applyAuthUI({ session: null, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn });
   }
 
+  // 2) Wire Logout once
   if (logoutBtn && !logoutBtn.dataset.wired) {
     logoutBtn.dataset.wired = "1";
     logoutBtn.addEventListener("click", async (e) => {
       e.preventDefault();
       await logout();
-
-      // small delay helps ensure storage clears before redirect
-      setTimeout(() => {
-        window.location.href = logoutRedirect;
-      }, 150);
+      setTimeout(() => (window.location.href = logoutRedirect), 150);
     });
   }
+
+  // 3) ✅ Live updates on auth state changes
+  // This makes headers update immediately after login/logout without refresh.
+  sb.auth.onAuthStateChange((_event, session) => {
+    applyAuthUI({ session, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn });
+  });
 }
