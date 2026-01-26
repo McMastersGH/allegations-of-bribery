@@ -74,21 +74,45 @@ export async function resendSignupEmail(email) {
   }
 }
 
+/**
+ * ✅ FIX: hard logout for static sites
+ * Clears Supabase auth session + removes ALL storage keys for this project ref.
+ */
 export async function logout() {
   const sb = getSupabaseClient();
-  const { error } = await sb.auth.signOut();
-  if (error) return { ok: false, error: error.message };
+
+  // project ref derived from https://ovsshqgcfucwzcgqltes.supabase.co
+  const PROJECT_REF = "ovsshqgcfucwzcgqltes";
+  const PREFIX = `sb-${PROJECT_REF}-`;
+
+  // 1) Ask Supabase to sign out (local session)
+  try {
+    const { error } = await sb.auth.signOut({ scope: "local" });
+    if (error) console.warn("Supabase signOut error:", error.message);
+  } catch (e) {
+    console.warn("Supabase signOut threw:", e);
+  }
+
+  // 2) Hard clear any persisted tokens/verifiers for this project
+  const clearStore = (store) => {
+    try {
+      const keys = [];
+      for (let i = 0; i < store.length; i++) {
+        const k = store.key(i);
+        if (k && k.startsWith(PREFIX)) keys.push(k);
+      }
+      keys.forEach((k) => store.removeItem(k));
+    } catch {}
+  };
+
+  clearStore(localStorage);
+  clearStore(sessionStorage);
+
   return { ok: true };
 }
 
 /**
- * Show/hide Login/Register vs Logout + show logged-in user badge.
- * Expects IDs (defaults match your index.html):
- * - loginLink
- * - registerLink
- * - logoutBtn
- * - userBadge
- * - userMenuBtn
+ * Show/hide Login/Register vs Logout + show logged-in user badge
  */
 export async function wireAuthButtons({
   loginLinkId = "loginLink",
@@ -104,7 +128,6 @@ export async function wireAuthButtons({
   const userBadge = document.getElementById(userBadgeId);
   const userMenuBtn = document.getElementById(userMenuBtnId);
 
-  // If the page doesn't have any auth UI, do nothing.
   if (!loginLink && !registerLink && !logoutBtn && !userBadge && !userMenuBtn) return;
 
   let session = null;
@@ -115,7 +138,6 @@ export async function wireAuthButtons({
   }
 
   if (!session) {
-    // Logged out
     if (loginLink) loginLink.style.display = "inline-flex";
     if (registerLink) registerLink.style.display = "inline-flex";
     if (logoutBtn) logoutBtn.style.display = "none";
@@ -123,13 +145,11 @@ export async function wireAuthButtons({
     return;
   }
 
-  // Logged in
   if (loginLink) loginLink.style.display = "none";
   if (registerLink) registerLink.style.display = "none";
   if (logoutBtn) logoutBtn.style.display = "inline-flex";
   if (userBadge) userBadge.style.display = "inline-flex";
 
-  // Display name preference: user_metadata.display_name → email
   const user = session.user;
   const display =
     (user?.user_metadata && (user.user_metadata.display_name || user.user_metadata.full_name)) ||
@@ -141,13 +161,16 @@ export async function wireAuthButtons({
     userMenuBtn.title = user?.email || display;
   }
 
-  // Wire Logout once
   if (logoutBtn && !logoutBtn.dataset.wired) {
     logoutBtn.dataset.wired = "1";
     logoutBtn.addEventListener("click", async (e) => {
       e.preventDefault();
       await logout();
-      window.location.href = logoutRedirect;
+
+      // small delay helps ensure storage clears before redirect
+      setTimeout(() => {
+        window.location.href = logoutRedirect;
+      }, 150);
     });
   }
 }
