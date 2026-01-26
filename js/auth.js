@@ -40,7 +40,6 @@ export async function signUp(
       email,
       password,
       options: {
-        // Marker helps login page show a friendly message
         emailRedirectTo: `${window.location.origin}/login.html?from=confirm`,
         data: {
           display_name: displayName || "",
@@ -59,7 +58,7 @@ export async function signUp(
   }
 }
 
-// ✅ Add missing export used by signup.html
+// Used by signup.html
 export async function resendSignupEmail(email) {
   const sb = getSupabaseClient();
   try {
@@ -80,4 +79,75 @@ export async function logout() {
   const { error } = await sb.auth.signOut();
   if (error) return { ok: false, error: error.message };
   return { ok: true };
+}
+
+/**
+ * Show/hide Login/Register vs Logout + show logged-in user badge.
+ * Expects IDs (defaults match your index.html):
+ * - loginLink
+ * - registerLink
+ * - logoutBtn
+ * - userBadge
+ * - userMenuBtn
+ */
+export async function wireAuthButtons({
+  loginLinkId = "loginLink",
+  registerLinkId = "registerLink",
+  logoutBtnId = "logoutBtn",
+  userBadgeId = "userBadge",
+  userMenuBtnId = "userMenuBtn",
+  logoutRedirect = "./index.html",
+} = {}) {
+  const loginLink = document.getElementById(loginLinkId);
+  const registerLink = document.getElementById(registerLinkId);
+  const logoutBtn = document.getElementById(logoutBtnId);
+  const userBadge = document.getElementById(userBadgeId);
+  const userMenuBtn = document.getElementById(userMenuBtnId);
+
+  // If the page doesn't have any auth UI, do nothing.
+  if (!loginLink && !registerLink && !logoutBtn && !userBadge && !userMenuBtn) return;
+
+  let session = null;
+  try {
+    session = await getSession();
+  } catch {
+    session = null;
+  }
+
+  if (!session) {
+    // Logged out
+    if (loginLink) loginLink.style.display = "inline-flex";
+    if (registerLink) registerLink.style.display = "inline-flex";
+    if (logoutBtn) logoutBtn.style.display = "none";
+    if (userBadge) userBadge.style.display = "none";
+    return;
+  }
+
+  // Logged in
+  if (loginLink) loginLink.style.display = "none";
+  if (registerLink) registerLink.style.display = "none";
+  if (logoutBtn) logoutBtn.style.display = "inline-flex";
+  if (userBadge) userBadge.style.display = "inline-flex";
+
+  // Display name preference: user_metadata.display_name → email
+  const user = session.user;
+  const display =
+    (user?.user_metadata && (user.user_metadata.display_name || user.user_metadata.full_name)) ||
+    user?.email ||
+    "Account";
+
+  if (userMenuBtn) {
+    userMenuBtn.textContent = display;
+    userMenuBtn.title = user?.email || display;
+  }
+
+  // Wire Logout once
+  if (logoutBtn && !logoutBtn.dataset.wired) {
+    logoutBtn.dataset.wired = "1";
+    logoutBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      await logout();
+      window.location.href = logoutRedirect;
+    });
+  }
 }
