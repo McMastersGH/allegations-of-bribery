@@ -26,14 +26,22 @@ export async function login(email, password) {
   }
 }
 
-export async function signUp(email, password, displayName, consent = { termsAccepted: false, privacyAccepted: false }) {
+export async function signUp(
+  email,
+  password,
+  displayName,
+  consent = { termsAccepted: false, privacyAccepted: false }
+) {
   const sb = getSupabaseClient();
   try {
     const nowIso = new Date().toISOString();
+
     const { data, error } = await sb.auth.signUp({
       email,
       password,
       options: {
+        // Marker helps login page show a friendly message
+        emailRedirectTo: `${window.location.origin}/login.html?from=confirm`,
         data: {
           display_name: displayName || "",
           terms_accepted_at: consent?.termsAccepted ? nowIso : null,
@@ -41,8 +49,27 @@ export async function signUp(email, password, displayName, consent = { termsAcce
         }
       }
     });
+
     if (error) return { ok: false, error: error.message };
-    return { ok: true, data };
+
+    const needsEmailConfirm = !data?.session;
+    return { ok: true, data, needsEmailConfirm };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+// ✅ Add missing export used by signup.html
+export async function resendSignupEmail(email) {
+  const sb = getSupabaseClient();
+  try {
+    const { error } = await sb.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/login.html?from=confirm` }
+    });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
   } catch (e) {
     return { ok: false, error: String(e) };
   }
@@ -50,64 +77,7 @@ export async function signUp(email, password, displayName, consent = { termsAcce
 
 export async function logout() {
   const sb = getSupabaseClient();
-  await sb.auth.signOut();
-}
-
-export async function requireAuthOrRedirect(redirectTo = "./login.html") {
-  const session = await getSession();
-  if (!session) {
-    window.location.href = redirectTo;
-    return null;
-  }
-  return session;
-}
-
-// Keep this name for backwards compatibility in your other files.
-// It now returns the SAME safe object as getMyAuthorStatus().
-export async function getMyProfile() {
-  const session = await getSession();
-  if (!session) return null;
-  return await getMyAuthorStatus();
-}
-
-// Returns { user_id, display_name, approved, is_anonymous } or null
-export async function getMyAuthorStatus() {
-  const { supabase } = await import("./supabaseClient.js");
-
-  const { data, error } = await supabase.rpc("my_author_status");
-  if (error) throw error;
-
-  // Supabase RPC can return an array for TABLE returns
-  if (Array.isArray(data)) return data[0] ?? null;
-  return data ?? null;
-}
-
-/**
- * Wires up the header Login/Logout controls used in your HTML.
- * - loginLinkId: <a> element that should be hidden when logged in
- * - logoutBtnId: <button> element that should be shown when logged in
- */
-export async function wireAuthButtons({ loginLinkId = "loginLink", logoutBtnId = "logoutBtn" } = {}) {
-  const loginLink = document.getElementById(loginLinkId);
-  const logoutBtn = document.getElementById(logoutBtnId);
-
-  const session = await getSession();
-  const isAuthed = Boolean(session);
-
-  if (loginLink) loginLink.style.display = isAuthed ? "none" : "inline-flex";
-  if (logoutBtn) logoutBtn.style.display = isAuthed ? "inline-flex" : "none";
-
-  if (logoutBtn) {
-    logoutBtn.onclick = async () => {
-      await logout();
-      window.location.href = "./index.html";
-    };
-  }
-}
-
-export async function setMyAnonymity(isAnonymous) {
-  const sb = getSupabaseClient();
-  const { error } = await sb.rpc("set_my_anonymity", { p_is_anonymous: Boolean(isAnonymous) });
-  if (error) throw error;
-  return true;
+  const { error } = await sb.auth.signOut();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }

@@ -1,16 +1,13 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <span id="userBadge" class="user-badge" style="display:none;">
-  <button id="userMenuBtn" class="btn ghost" type="button"></button>
-</span>
-
-  <link rel="icon" href="./favicon.ico">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sign up — Allegations of Bribery</title>
+  <link rel="icon" href="./favicon.ico">
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
+
 <body>
   <header class="site-header">
     <div class="brand">
@@ -30,14 +27,15 @@
     <section class="card narrow">
       <h2>Sign up</h2>
 
-      <label class="label">Display name</label>
+      <label class="label" for="displayName">Display name</label>
       <input id="displayName" class="input" type="text" placeholder="Display Name" />
 
-      <label class="label">Email</label>
+      <label class="label" for="email">Email</label>
       <input id="email" class="input" type="email" autocomplete="email" placeholder="you@example.com" />
 
-      <label class="label">Password</label>
+      <label class="label" for="password">Password</label>
       <input id="password" class="input" type="password" autocomplete="new-password" placeholder="••••••••" />
+
       <div class="legal-consent">
         <label class="checkrow">
           <input id="agreeTerms" type="checkbox" />
@@ -47,35 +45,35 @@
           <input id="agreePrivacy" type="checkbox" />
           <span>I have read the <a href="./privacy.html" target="_blank" rel="noopener">Privacy Statement</a>.</span>
         </label>
-        <p class="muted small">
-          You must check both boxes before you can create an account.
-        </p>
+        <p class="muted small">You must check both boxes before you can create an account.</p>
       </div>
 
       <div class="row gap">
-        <button id="signupBtn" class="btn">Create account</button>
+        <button id="signupBtn" class="btn" type="button">Create account</button>
         <a class="btn ghost" href="./login.html">Already have an account</a>
+        <button id="resendBtn" class="btn ghost" type="button" style="display:none;">Resend confirmation email</button>
       </div>
 
       <p class="muted">
         Note: New accounts are not approved to publish until you mark them approved in Supabase.
       </p>
 
-      <p id="msg" class="muted"></p>
+      <p id="msg" class="muted" aria-live="polite"></p>
     </section>
   </main>
 
   <script type="module">
-    import { signUp } from "./js/auth.js";
+    import { signUp, resendSignupEmail } from "./js/auth.js";
 
     const displayName = document.getElementById("displayName");
     const email = document.getElementById("email");
     const password = document.getElementById("password");
     const msg = document.getElementById("msg");
-    
+
     const agreeTerms = document.getElementById("agreeTerms");
     const agreePrivacy = document.getElementById("agreePrivacy");
     const signupBtn = document.getElementById("signupBtn");
+    const resendBtn = document.getElementById("resendBtn");
 
     function syncConsentState() {
       const ok = agreeTerms.checked && agreePrivacy.checked;
@@ -87,16 +85,45 @@
     agreePrivacy.addEventListener("change", syncConsentState);
     syncConsentState();
 
-document.getElementById("signupBtn").addEventListener("click", async () => {
-      msg.textContent = "Creating account...";
-      if (!(agreeTerms.checked && agreePrivacy.checked)) { msg.textContent = "You must agree to the Terms and Privacy Statement before creating an account."; return; }
-      const res = await signUp(email.value.trim(), password.value, displayName.value.trim(), { termsAccepted: true, privacyAccepted: true });
-      if (!res.ok) {
-        msg.textContent = res.error;
-        return;
+    signupBtn.addEventListener("click", async () => {
+      try {
+        msg.textContent = "Creating account...";
+
+        if (!(agreeTerms.checked && agreePrivacy.checked)) {
+          msg.textContent = "You must agree to the Terms and Privacy Statement before creating an account.";
+          return;
+        }
+
+        const res = await signUp(
+          (email.value || "").trim(),
+          password.value || "",
+          (displayName.value || "").trim(),
+          { termsAccepted: true, privacyAccepted: true }
+        );
+
+        if (!res.ok) {
+          msg.textContent = res.error;
+          return;
+        }
+
+        if (res.needsEmailConfirm) {
+          msg.textContent = "Account created. Check your email for the confirmation link.";
+          resendBtn.style.display = "inline-flex";
+          return;
+        }
+
+        msg.textContent = "Account created and signed in.";
+        window.location.href = "./index.html";
+      } catch (e) {
+        msg.textContent = `Signup failed: ${String(e)}`;
+        console.error(e);
       }
-      msg.textContent = "Account created. Check your email if confirmation is enabled, then log in.";
-      setTimeout(() => (window.location.href = "./login.html"), 1200);
+    });
+
+    resendBtn.addEventListener("click", async () => {
+      msg.textContent = "Resending confirmation email...";
+      const r = await resendSignupEmail((email.value || "").trim());
+      msg.textContent = r.ok ? "Confirmation email resent. Check inbox/spam." : r.error;
     });
   </script>
 </body>
