@@ -2,13 +2,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <span id="userBadge" class="user-badge" style="display:none;">
-  <button id="userMenuBtn" class="btn ghost" type="button"></button>
-</span>
-
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Allegations of Bribery | Forums</title>
+
+  <!-- Favicon -->
+  <link rel="icon" href="./favicon.ico" />
 
   <!-- Tailwind CDN (fastest path for GitHub Pages) -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -36,30 +35,35 @@
 <body class="bg-page text-slate-200 antialiased">
 
   <div id="ucGate" class="uc-gate" role="dialog" aria-modal="true" aria-labelledby="ucTitle">
-  <div class="uc-gate-card">
-    <h1 id="ucTitle">Under Construction</h1>
-    <p class="uc-gate-sub">
-      This site is live in preview mode. Content is being verified and expanded.
-    </p>
-    <p class="uc-gate-cta">
-      Click the button below to continue to the site.
-    </p>
+    <div class="uc-gate-card">
+      <h1 id="ucTitle">Under Construction</h1>
+      <p class="uc-gate-sub">
+        This site is live in preview mode. Content is being verified and expanded.
+      </p>
+      <p class="uc-gate-cta">
+        Click the button below to continue to the site.
+      </p>
 
-    <button id="ucContinueBtn" class="uc-gate-btn" type="button">
-      Click to Continue
-    </button>
+      <button id="ucContinueBtn" class="uc-gate-btn" type="button">
+        Click to Continue
+      </button>
 
-    <p class="uc-gate-note">
-      By continuing, you acknowledge that information may change as sources are verified.
-    </p>
+      <p class="uc-gate-note">
+        By continuing, you acknowledge that information may change as sources are verified.
+      </p>
+    </div>
   </div>
-</div>
 
-   <!-- Top Bar -->
+  <!-- Top Bar -->
   <header class="sticky top-0 z-50 border-b border-stroke bg-panel/95 backdrop-blur">
     <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
       <div class="flex items-center gap-3">
-        <div class="h-8 w-8 rounded bg-slate-700"></div>
+        <!-- ONLY NECESSARY CHANGE: use ladyjusticebribed in the header box (favicon stays as browser tab icon) -->
+        <img
+          src="./assets/ladyjusticebribed.png"
+          alt="Allegations of Bribery"
+          class="h-8 w-8 rounded bg-slate-700 object-contain p-1"
+        />
         <div class="text-lg font-semibold tracking-tight">Allegations of Bribery</div>
       </div>
 
@@ -70,16 +74,43 @@
         <a class="hover:text-white" href="#">What’s new</a>
       </nav>
 
-      <a href="./login.html"
-        class="rounded-md bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">
+      <!-- Auth controls (JS toggles these) -->
+      <div class="flex items-center gap-3">
+        <a
+          id="loginLink"
+          href="./login.html"
+          class="rounded-md bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+        >
           Log in
         </a>
 
-      <a href="./signup.html"
-        class="rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800">
+        <a
+          id="registerLink"
+          href="./signup.html"
+          class="rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+        >
           Register
-      </a>
+        </a>
 
+        <span
+          id="userBadge"
+          class="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-200"
+          style="display:none;"
+          title=""
+        >
+          <span class="inline-block h-2 w-2 rounded-full bg-emerald-400"></span>
+          <span id="userMenuBtn" class="max-w-[220px] truncate font-medium"></span>
+        </span>
+
+        <button
+          id="logoutBtn"
+          class="rounded-md border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+          type="button"
+          style="display:none;"
+        >
+          Logout
+        </button>
+      </div>
     </div>
   </header>
 
@@ -167,7 +198,6 @@
              class="group rounded-lg border border-stroke bg-panel p-4 transition hover:bg-slate-800">
             <div class="flex items-start gap-3">
               <div class="mt-1 flex h-9 w-9 items-center justify-center rounded-md bg-slate-700 text-slate-200">
-                <!-- icon placeholder -->
                 <span class="text-xs font-bold">GT</span>
               </div>
               <div class="min-w-0">
@@ -333,19 +363,23 @@
         </div>
 
         <div class="flex h-40 items-center justify-center rounded-md border border-dashed border-slate-700">
-        <img
-          src="./assets/ladyjusticebribed.png"
-          alt="Allegations of Bribery"
-          class="h-40 w-full object-contain"
-        />
+          <img
+            src="./assets/ladyjusticebribed.png"
+            alt="Allegations of Bribery"
+            class="h-40 w-full object-contain"
+          />
         </div>
-        
       </div>
     </aside>
   </main>
 
   <script>
     document.getElementById("y").textContent = new Date().getFullYear();
+  </script>
+
+  <script type="module">
+    import { wireAuthButtons } from "./js/auth.js";
+    wireAuthButtons();
   </script>
 
 </body>
