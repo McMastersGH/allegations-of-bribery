@@ -1,16 +1,13 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <span id="userBadge" class="user-badge" style="display:none;">
-  <button id="userMenuBtn" class="btn ghost" type="button"></button>
-</span>
-
   <link rel="icon" href="./favicon.ico">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Post — Allegations of Bribery</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
+
 <body>
   <header class="site-header">
     <div class="brand">
@@ -21,71 +18,91 @@
       </div>
     </div>
 
-    <nav class="nav">
+    <nav class="nav" style="display:flex; gap:10px; align-items:center;">
       <a class="btn ghost" href="./index.html">Home</a>
-      <a class="btn ghost" href="./write.html">Write</a>
-      <a class="btn ghost" href="./login.html" id="loginLink">Login</a>
-      <button class="btn" id="logoutBtn" style="display:none;">Logout</button>
+
+      <!-- Normalized auth controls -->
+      <a class="btn ghost" href="./login.html" id="loginLink">Log in</a>
+      <a class="btn ghost" href="./signup.html" id="registerLink">Register</a>
+
+      <span id="userBadge" class="user-badge" style="display:none;">
+        <span
+          class="dot"
+          aria-hidden="true"
+          style="display:inline-block;width:8px;height:8px;border-radius:999px;margin-right:6px;background:#34d399;"
+        ></span>
+        <span
+          id="userMenuBtn"
+          style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+        ></span>
+      </span>
+
+      <button class="btn" id="logoutBtn" type="button" style="display:none;">Logout</button>
     </nav>
   </header>
 
   <main class="container">
-    <article class="card">
-      <h2 id="postTitle"></h2>
-
-      <p class="muted" id="postMeta">
-        <span class="author-name"></span>
-        <span class="post-date"></span>
-      </p>
-
-      <div class="divider"></div>
-
-      <div id="postContent" class="prose"></div>
-
-      <div class="divider"></div>
-      <h3>Attachments</h3>
-      <div id="attachments" class="list"></div>
-    </article>
-
     <section class="card">
-      <h3>Comments</h3>
-      <div id="comments" class="list"></div>
+      <div class="row" style="justify-content:space-between; align-items:flex-start; gap:12px;">
+        <div>
+          <h2 id="postTitle">Loading…</h2>
 
-      <div class="divider"></div>
-      <p class="muted" id="commentGate"></p>
+          <!-- post.js expects spans inside #postMeta -->
+          <div id="postMeta" class="muted small" style="margin-top:6px;">
+            <span class="author-name"></span>
+            <span class="post-date"></span>
+          </div>
+        </div>
 
-      <div class="panel" id="commentAnonPanel" style="margin:14px 0; display:none;">
-        <label class="checkrow">
-          <input type="checkbox" id="commentAnonToggle">
-          <span>
-            Comment anonymously<br>
-            <span class="small muted">
-              If enabled, your comments will display “Chose Anonymity”.
-            </span>
-          </span>
-        </label>
-          
-  <p id="commentAnonStatus" class="small muted"></p>
-</div>
-
-      <label class="label">Add a comment</label>
-      <textarea id="commentText" class="textarea" rows="3" placeholder="Write a comment..."></textarea>
-
-      <div class="row gap">
-        <button id="commentBtn" class="btn">Post Comment</button>
+        <a class="btn ghost" href="./index.html">← Back</a>
       </div>
 
-      <p id="commentMsg" class="muted"></p>
+      <div id="postContent" class="prose" style="margin-top:14px;"></div>
+    </section>
+
+    <section class="card" style="margin-top:14px;">
+      <h3>Attachments</h3>
+      <div id="attachments" class="list" style="margin-top:10px;"></div>
+    </section>
+
+    <section class="card" style="margin-top:14px;">
+      <div class="row" style="justify-content:space-between; align-items:center;">
+        <h3>Comments</h3>
+        <div id="commentGate" class="muted small"></div>
+      </div>
+
+      <!-- Anonymity toggle panel (post.js shows/hides this) -->
+      <div id="commentAnonPanel" class="panel" style="margin:12px 0; display:none;">
+        <label class="checkrow">
+          <input id="commentAnonToggle" type="checkbox" />
+          <span>
+            Comment anonymously<br>
+            <span class="small muted">If enabled, your comments display “Chose Anonymity”.</span>
+          </span>
+        </label>
+        <p id="commentAnonStatus" class="small muted" style="margin-top:8px;"></p>
+      </div>
+
+      <label class="label" for="commentText">Add a comment</label>
+      <textarea id="commentText" class="textarea" rows="4" placeholder="Write a comment..." disabled></textarea>
+
+      <div class="row gap" style="margin-top:10px;">
+        <button id="commentBtn" class="btn" type="button" disabled>Post comment</button>
+        <div id="commentMsg" class="muted small" style="align-self:center;"></div>
+      </div>
+
+      <div id="comments" class="list" style="margin-top:14px;"></div>
     </section>
   </main>
 
+  <!-- Preserve next= behavior for login -->
   <script>
     const link = document.getElementById("loginLink");
-      if (link) {
-        const next = encodeURIComponent(window.location.pathname + window.location.search);
-        link.href = `./login.html?next=${next}`;
-  }
-    </script>
+    if (link) {
+      const next = encodeURIComponent(window.location.pathname + window.location.search);
+      link.href = `./login.html?next=${next}`;
+    }
+  </script>
 
   <script type="module" src="./js/post.js"></script>
 </body>

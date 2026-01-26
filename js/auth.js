@@ -109,8 +109,74 @@ export async function logout() {
 }
 
 /**
+ * ✅ REQUIRED BY write.js, post.js, header.js
+ * Returns the current user's row from public.authors (if it exists).
+ * Resilient to older schemas that might not have is_anonymous.
+ */
+export async function getMyAuthorStatus() {
+  const sb = getSupabaseClient();
+  const session = await getSession();
+  const uid = session?.user?.id;
+  if (!uid) return null;
+
+  // Try with is_anonymous first (newer schema)
+  let { data, error } = await sb
+    .from("authors")
+    .select("user_id, email, display_name, approved, is_anonymous, created_at")
+    .eq("user_id", uid)
+    .maybeSingle();
+
+  // If column doesn't exist, fall back safely
+  if (error && /column .*is_anonymous/i.test(error.message || "")) {
+    const fallback = await sb
+      .from("authors")
+      .select("user_id, email, display_name, approved, created_at")
+      .eq("user_id", uid)
+      .maybeSingle();
+    data = fallback.data;
+    error = fallback.error;
+    if (data && typeof data.is_anonymous === "undefined") data.is_anonymous = false;
+  }
+
+  if (error) throw error;
+  if (data && typeof data.is_anonymous === "undefined") data.is_anonymous = false;
+  return data || null;
+}
+
+/**
+ * ✅ Compatibility export (some pages import getMyProfile)
+ * For this site, the profile information is coming from public.authors.
+ */
+export async function getMyProfile() {
+  return await getMyAuthorStatus();
+}
+
+/**
+ * ✅ REQUIRED BY write.js, post.js
+ * Persist account-level anonymity preference (if authors.is_anonymous exists).
+ */
+export async function setMyAnonymity(isAnonymous) {
+  const sb = getSupabaseClient();
+  const session = await getSession();
+  const uid = session?.user?.id;
+  if (!uid) throw new Error("Not signed in.");
+
+  const { error } = await sb
+    .from("authors")
+    .update({ is_anonymous: Boolean(isAnonymous) })
+    .eq("user_id", uid);
+
+  // If schema doesn't support it, fail with a clear message
+  if (error && /column .*is_anonymous/i.test(error.message || "")) {
+    throw new Error("Anonymity setting is not available (authors.is_anonymous column not found).");
+  }
+  if (error) throw error;
+
+  return { ok: true };
+}
+
+/**
  * Internal: apply logged-in / logged-out UI state.
- * (Used both on initial load and onAuthStateChange.)
  */
 function applyAuthUI({
   session,
@@ -121,7 +187,6 @@ function applyAuthUI({
   userMenuBtn,
 }) {
   if (!session) {
-    // Logged out
     if (loginLink) loginLink.style.display = "inline-flex";
     if (registerLink) registerLink.style.display = "inline-flex";
     if (logoutBtn) logoutBtn.style.display = "none";
@@ -130,7 +195,6 @@ function applyAuthUI({
     return;
   }
 
-  // Logged in
   if (loginLink) loginLink.style.display = "none";
   if (registerLink) registerLink.style.display = "none";
   if (logoutBtn) logoutBtn.style.display = "inline-flex";
@@ -150,7 +214,7 @@ function applyAuthUI({
 
 /**
  * Show/hide Login/Register vs Logout + show logged-in user badge
- * ✅ Now also listens to auth changes and updates instantly.
+ * ✅ Also listens to auth changes and updates instantly.
  */
 export async function wireAuthButtons({
   loginLinkId = "loginLink",
@@ -170,9 +234,7 @@ export async function wireAuthButtons({
 
   const sb = getSupabaseClient();
 
-  // Prevent double-wiring on the same page
   if (document.documentElement.dataset.authWired === "1") {
-    // Still do a quick UI sync in case this was called twice
     try {
       const session = await getSession();
       applyAuthUI({ session, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn });
@@ -183,7 +245,7 @@ export async function wireAuthButtons({
   }
   document.documentElement.dataset.authWired = "1";
 
-  // 1) Initial render
+  // Initial render
   try {
     const session = await getSession();
     applyAuthUI({ session, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn });
@@ -191,7 +253,7 @@ export async function wireAuthButtons({
     applyAuthUI({ session: null, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn });
   }
 
-  // 2) Wire Logout once
+  // Wire Logout once
   if (logoutBtn && !logoutBtn.dataset.wired) {
     logoutBtn.dataset.wired = "1";
     logoutBtn.addEventListener("click", async (e) => {
@@ -201,8 +263,7 @@ export async function wireAuthButtons({
     });
   }
 
-  // 3) ✅ Live updates on auth state changes
-  // This makes headers update immediately after login/logout without refresh.
+  // Live updates on auth state changes
   sb.auth.onAuthStateChange((_event, session) => {
     applyAuthUI({ session, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn });
   });

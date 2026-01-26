@@ -58,7 +58,6 @@
   <header class="sticky top-0 z-50 border-b border-stroke bg-panel/95 backdrop-blur">
     <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
       <div class="flex items-center gap-3">
-        <!-- ONLY NECESSARY CHANGE: use ladyjusticebribed in the header box (favicon stays as browser tab icon) -->
         <img
           src="./assets/ladyjusticebribed.png"
           alt="Allegations of Bribery"
@@ -71,7 +70,9 @@
         <a class="hover:text-white" href="#">Forums</a>
         <a class="hover:text-white" href="#">Documents</a>
         <a class="hover:text-white" href="#">Cases</a>
-        <a class="hover:text-white" href="#">What’s new</a>
+
+        <!-- ONLY NECESSARY CHANGE: Write link toggled by auth state -->
+        <a id="writeLink" class="hover:text-white" href="./write.html" style="display:none;">Write</a>
       </nav>
 
       <!-- Auth controls (JS toggles these) -->
@@ -377,9 +378,21 @@
     document.getElementById("y").textContent = new Date().getFullYear();
   </script>
 
+  <!-- ONLY NECESSARY CHANGE: toggle Write link based on auth/approval -->
   <script type="module">
-    import { wireAuthButtons } from "./js/auth.js";
+    import { wireAuthButtons, getMyAuthorStatus } from "./js/auth.js";
+
     wireAuthButtons();
+
+    const writeLink = document.getElementById("writeLink");
+    if (writeLink) {
+      try {
+        const status = await getMyAuthorStatus();
+        writeLink.style.display = status?.approved ? "inline-flex" : "none";
+      } catch {
+        writeLink.style.display = "none";
+      }
+    }
   </script>
 
 </body>

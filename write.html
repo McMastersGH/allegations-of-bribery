@@ -7,12 +7,9 @@
   <title>Write — Allegations of Bribery</title>
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
+
 <body>
   <header class="site-header">
-    <span id="userBadge" class="user-badge" style="display:none;">
-  <button id="userMenuBtn" class="btn ghost" type="button"></button>
-</span>
-
     <div class="brand">
       <img src="./assets/ladyjusticebribed.png" alt="logo" class="logo" />
       <div>
@@ -20,45 +17,64 @@
         <p class="muted">Authoring</p>
       </div>
     </div>
-    <nav class="nav">
+
+    <nav class="nav" style="display:flex; gap:10px; align-items:center;">
       <a class="btn ghost" href="./index.html">Home</a>
-      <a class="btn ghost" href="./login.html" id="loginLink">Login</a>
-      <button class="btn" id="logoutBtn" style="display:none;">Logout</button>
+
+      <!-- Normalized auth controls (same IDs as other pages) -->
+      <a class="btn ghost" href="./login.html" id="loginLink">Log in</a>
+      <a class="btn ghost" href="./signup.html" id="registerLink">Register</a>
+
+      <span id="userBadge" class="user-badge" style="display:none;">
+        <span
+          class="dot"
+          aria-hidden="true"
+          style="display:inline-block;width:8px;height:8px;border-radius:999px;margin-right:6px;background:#34d399;"
+        ></span>
+        <span
+          id="userMenuBtn"
+          style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+        ></span>
+      </span>
+
+      <button class="btn" id="logoutBtn" type="button" style="display:none;">Logout</button>
     </nav>
   </header>
 
   <main class="container">
+    <!-- Gate area (write.js uses this) -->
     <div id="writeGate" class="card" style="display:none;"></div>
-      <section class="card">
-        <h2>Create Post</h2>
-        <p class="muted" id="statusMsg"></p>
 
-        <div class="panel" style="margin:14px 0">
-         <label class="checkrow">
+    <!-- REQUIRED: write.js expects #writeForm to show/hide -->
+    <section id="writeForm" class="card" style="display:none;">
+      <h2>Create Post</h2>
+      <p class="muted" id="statusMsg"></p>
+
+      <div class="panel" style="margin:14px 0">
+        <label class="checkrow">
           <input type="checkbox" id="anonToggle">
           <span>
             Post anonymously<br>
-          <span class="small muted">
-           Your name will not be shown. Comments and posts will display “Chose Anonymity”.
+            <span class="small muted">
+              Your name will not be shown. Comments and posts will display “Chose Anonymity”.
+            </span>
           </span>
-      </section>
-    </span>
-  </label>
-  <p id="anonStatus" class="small muted"></p>
-</div>
+        </label>
+        <p id="anonStatus" class="small muted"></p>
+      </div>
 
-      <label class="label">Title</label>
+      <label class="label" for="title">Title</label>
       <input id="title" class="input" placeholder="Post title..." />
 
-      <label class="label">Content (paste text here)</label>
+      <label class="label" for="content">Content (paste text here)</label>
       <textarea id="content" class="textarea" rows="10" placeholder="Paste your text..."></textarea>
 
-      <label class="label">Attachments (PDF/DOC/DOCX/TXT/Images)</label>
+      <label class="label" for="files">Attachments (PDF/DOC/DOCX/TXT/Images)</label>
       <input id="files" class="input" type="file" multiple />
 
       <div class="row gap">
-        <button id="publishBtn" class="btn">Publish</button>
-        <button id="saveDraftBtn" class="btn ghost">Save Draft</button>
+        <button id="publishBtn" class="btn" type="button">Publish</button>
+        <button id="saveDraftBtn" class="btn ghost" type="button">Save Draft</button>
       </div>
 
       <p class="muted">
@@ -68,22 +84,19 @@
   </main>
 
   <script type="module">
-  import * as pdfjsLib from "./js/vendor/pdfjs/pdf.min.mjs";
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "./js/vendor/pdfjs/pdf.worker.min.mjs";
-  window.pdfjsLib = pdfjsLib;
+    import * as pdfjsLib from "./js/vendor/pdfjs/pdf.min.mjs";
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "./js/vendor/pdfjs/pdf.worker.min.mjs";
+    window.pdfjsLib = pdfjsLib;
   </script>
 
   <script>
-  const link = document.getElementById("loginLink");
-  if (link) {
-    const next = encodeURIComponent(window.location.pathname + window.location.search);
-    link.href = `./login.html?next=${next}`;
-  }
+    const link = document.getElementById("loginLink");
+    if (link) {
+      const next = encodeURIComponent(window.location.pathname + window.location.search);
+      link.href = `./login.html?next=${next}`;
+    }
   </script>
 
   <script type="module" src="./js/write.js"></script>
-
-  <a class="btn ghost" href="./login.html?next=" id="loginLink">Login</a>
-
 </body>
 </html>
