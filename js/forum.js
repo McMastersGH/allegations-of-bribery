@@ -1,88 +1,101 @@
 // js/forum.js
-import { wireAuthButtons, getSession } from "./auth.js";
-import { listPosts, getAuthorProfile } from "./blogApi.js";
+import { listPosts } from "./blogApi.js";
 
-function $(id){ return document.getElementById(id); }
+const $ = (id) => document.getElementById(id);
 
-function getForumSlug(){
-  const u = new URL(window.location.href);
-  return (u.searchParams.get("forum") || "").trim() || "general-topics";
+function forumMeta(slug) {
+  const map = {
+    "general-topics": {
+      title: "General Topics",
+      desc: "Threads in general-topics",
+    },
+    introductions: {
+      title: "Introductions",
+      desc: "Introduce yourself and what you are researching.",
+    },
+    "questions-and-answers": {
+      title: "Questions & Answers",
+      desc: "Ask for clarification, document analysis, and procedural guidance.",
+    },
+    "off-topic": {
+      title: "Off-topic",
+      desc: "Anything not directly related to cases, filings, or records.",
+    },
+  };
+  return map[slug] || { title: slug, desc: `Threads in ${slug}` };
 }
 
-function escapeHtml(s){
-  return (s||"")
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
-function setStatus(msg){
+function setStatus(msg, isError = false) {
   const el = $("status");
-  if (el) el.textContent = msg || "";
+  if (!el) return;
+  el.textContent = msg || "";
+  el.classList.toggle("text-rose-300", !!isError);
+  el.classList.toggle("text-slate-500", !isError);
 }
 
-function renderRow(p){
-  const title = escapeHtml(p.title || "(untitled)");
-  const author = escapeHtml(p.display_name || (p.is_anonymous ? "Anonymous" : "Unknown"));
-  const when = p.created_at ? new Date(p.created_at).toLocaleString() : "";
-  return `
-    <a href="post.html?id=${encodeURIComponent(p.id)}" class="block py-3 hover:bg-slate-900/30">
-      <div class="flex items-start justify-between gap-3">
-        <div class="min-w-0">
-          <div class="truncate text-sm font-semibold text-slate-200">${title}</div>
-          <div class="mt-1 text-xs text-slate-500">
-            <span>${author}</span>
-            ${when ? `<span class="mx-2">•</span><span>${escapeHtml(when)}</span>` : ""}
-          </div>
-        </div>
-        <div class="shrink-0 text-xs text-slate-500">Open →</div>
-      </div>
-    </a>
-  `;
+function escapeHtml(s) {
+  return String(s || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
-  try { await wireAuthButtons(); } catch (e) { console.warn(e); }
+function renderThreads(rows) {
+  const wrap = $("threads");
+  if (!wrap) return;
 
-  const slug = getForumSlug();
-
-  const titleEl = $("forumTitle");
-  const descEl = $("forumDesc");
-  if (titleEl) titleEl.textContent = slug.replaceAll("-", " ").replace(/\b\w/g, c => c.toUpperCase());
-  if (descEl) descEl.textContent = `Threads in ${slug}`;
-
-  const newBtn = $("newThreadBtn");
-  if (newBtn) {
-    newBtn.href = `./write.html?forum=${encodeURIComponent(slug)}`;
-    newBtn.style.display = "none";
-  }
-
-  // Show "New thread" only if logged-in + approved
-  let canPost = false;
-  try {
-    const session = await getSession();
-    if (session?.user) {
-      const prof = await getAuthorProfile(session.user.id);
-      if (prof.ok && prof.profile?.approved) canPost = true;
-    }
-  } catch {}
-
-  if (newBtn && canPost) newBtn.style.display = "inline-flex";
-
-  // Load posts
-  setStatus("Loading...");
-  const threadsEl = $("threads");
-  if (!threadsEl) return;
-
-  const res = await listPosts(slug, { limit: 100 });
-  if (!res.ok) {
-    setStatus(res.error || "Failed to load threads.");
+  if (!rows?.length) {
+    wrap.innerHTML = `<div class="py-4 text-sm text-slate-400">No threads yet.</div>`;
     return;
   }
 
-  const posts = res.posts || [];
-  setStatus(posts.length ? "" : "No threads yet.");
-  threadsEl.innerHTML = posts.map(renderRow).join("");
+  wrap.innerHTML = rows
+    .map((r) => {
+      const title = escapeHtml(r.title);
+      const when = r.created_at ? new Date(r.created_at).toLocaleString() : "";
+      const by = escapeHtml(r.display_name || r.author_label || "Unknown");
+      return `
+        <a href="./post.html?id=${encodeURIComponent(r.id)}"
+           class="block px-2 py-4 hover:bg-slate-900/40">
+          <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="truncate text-sm font-semibold text-slate-200">${title}</div>
+              <div class="mt-1 text-xs text-slate-500">By ${by} • ${escapeHtml(when)}</div>
+            </div>
+            <div class="shrink-0 text-xs text-slate-500">View</div>
+          </div>
+        </a>
+      `;
+    })
+    .join("");
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const u = new URL(window.location.href);
+  const slug = (u.searchParams.get("forum") || "general-topics").trim();
+
+  const meta = forumMeta(slug);
+  if ($("forumTitle")) $("forumTitle").textContent = meta.title;
+  if ($("forumDesc")) $("forumDesc").textContent = meta.desc;
+
+  // Wire "New thread" button if present
+  const newBtn = $("newThreadBtn");
+  if (newBtn) {
+    newBtn.href = `./write.html?forum=${encodeURIComponent(slug)}`;
+  }
+
+  setStatus("Loading…");
+
+  try {
+    // Use shared API which normalizes `display_name` from `author_label`.
+    const rows = await listPosts({ limit: 50, forum_slug: slug, publishedOnly: true });
+    setStatus("");
+    renderThreads(rows || []);
+  } catch (e) {
+    console.error("Forum exception:", e);
+    setStatus(`Failed to load threads: ${String(e)}`, true);
+    renderThreads([]);
+  }
 });

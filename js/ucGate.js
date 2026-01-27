@@ -28,7 +28,12 @@
     }
 
     btn.addEventListener("click", () => {
-      try { localStorage.setItem(KEY, "1"); } catch {}
+      try {
+        localStorage.setItem(KEY, "1");
+      } catch (e) {
+        // ignore storage failures (e.g., privacy mode)
+        console.debug("ucGate: localStorage set failed", e);
+      }
       hideGate();
     });
   }

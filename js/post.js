@@ -1,23 +1,23 @@
 // js/post.js
 import { getPostById, listComments, addComment, listPostFiles } from "./blogApi.js";
 import { getPublicUrl } from "./storageApi.js";
-import { getSession, getMyProfile, wireAuthButtons, getMyAuthorStatus, setMyAnonymity } from "./auth.js";
+import { getSession, wireAuthButtons, getMyAuthorStatus, setMyAnonymity } from "./auth.js";
 
-const postTitle = document.getElementById("postTitle");
-const postMeta = document.getElementById("postMeta");
-const postContent = document.getElementById("postContent");
-const attachments = document.getElementById("attachments");
-const commentsEl = document.getElementById("comments");
+let postTitle;
+let postMeta;
+let postContent;
+let attachments;
+let commentsEl;
 
-const commentGate = document.getElementById("commentGate");
-const commentText = document.getElementById("commentText");
-const commentBtn = document.getElementById("commentBtn");
-const commentMsg = document.getElementById("commentMsg");
+let commentGate;
+let commentText;
+let commentBtn;
+let commentMsg;
 
 // Handle anonymity toggle
-const commentAnonPanel = document.getElementById("commentAnonPanel");
-const commentAnonToggle = document.getElementById("commentAnonToggle");
-const commentAnonStatus = document.getElementById("commentAnonStatus");
+let commentAnonPanel;
+let commentAnonToggle;
+let commentAnonStatus;
 
 function escapeHtml(s) {
   return String(s ?? "")
@@ -42,6 +42,7 @@ function getId() {
 }
 
 async function renderFiles(postId) {
+  if (!attachments) return;
   attachments.innerHTML = "";
   const files = await listPostFiles(postId);
 
@@ -63,6 +64,7 @@ async function renderFiles(postId) {
 }
 
 async function renderComments(postId) {
+  if (!commentsEl) return;
   commentsEl.innerHTML = "";
   const comments = await listComments(postId);
 
@@ -83,24 +85,23 @@ async function renderComments(postId) {
 }
 
 async function wireCommentForm(post) {
-  let currentAnon = false;
 
   const session = await getSession();
 
   // Logged out: disable comment form + hide anon toggle UI
   if (!session) {
-    commentGate.textContent = "To comment, please log in.";
-    commentBtn.disabled = true;
-    commentText.disabled = true;
+    if (commentGate) commentGate.textContent = "To comment, please log in.";
+    if (commentBtn) commentBtn.disabled = true;
+    if (commentText) commentText.disabled = true;
 
     if (commentAnonPanel) commentAnonPanel.style.display = "none";
     return;
   }
 
   // Logged in: enable comment form + show anon toggle UI
-  commentGate.textContent = "You are logged in.";
-  commentBtn.disabled = false;
-  commentText.disabled = false;
+  if (commentGate) commentGate.textContent = "You are logged in.";
+  if (commentBtn) commentBtn.disabled = false;
+  if (commentText) commentText.disabled = false;
 
   if (commentAnonPanel) commentAnonPanel.style.display = "";
   if (commentAnonToggle) commentAnonToggle.disabled = false;
@@ -136,7 +137,7 @@ async function wireCommentForm(post) {
         }
       } catch (e) {
         // revert UI if save fails
-        commentAnonToggle.checked = !commentAnonToggle.checked;
+        if (commentAnonToggle) commentAnonToggle.checked = !commentAnonToggle.checked;
         if (commentAnonStatus) {
           commentAnonStatus.textContent = `Save failed: ${e?.message || String(e)}`;
         }
@@ -145,77 +146,106 @@ async function wireCommentForm(post) {
   }
 
   // Comment submit
-  commentBtn.onclick = async () => {
-    
-    try {
-      commentMsg.textContent = "Posting...";
-      const body = (commentText.value || "").trim();
-      if (!body) {
-        commentMsg.textContent = "Comment cannot be empty.";
-        return;
+  if (commentBtn) {
+    commentBtn.onclick = async () => {
+      try {
+        if (commentMsg) commentMsg.textContent = "Posting...";
+        const body = (commentText?.value || "").trim();
+        if (!body) {
+          if (commentMsg) commentMsg.textContent = "Comment cannot be empty.";
+          return;
+        }
+
+        // Use current toggle position (UI) as source of truth
+        const status = await getMyAuthorStatus(); // { user_id, display_name, approved, is_anonymous } or null
+
+        const displayName = status?.is_anonymous
+          ? "Chose Anonymity"
+          : (status?.display_name || "Member");
+
+        await addComment(post.id, body, displayName);
+
+        if (commentText) commentText.value = "";
+        if (commentMsg) commentMsg.textContent = "Posted.";
+        await renderComments(post.id);
+      } catch (e) {
+        if (commentMsg) commentMsg.textContent = `Error: ${e?.message || String(e)}`;
       }
-
-      // Use current toggle position (UI) as source of truth
-      
-      const status = await getMyAuthorStatus(); // { user_id, display_name, approved, is_anonymous } or null
-
-      const displayName = status?.is_anonymous
-      ? "Chose Anonymity"
-      : (status?.display_name || "Member");
-
-      await addComment(post.id, body, displayName);
-
-
-      commentText.value = "";
-      commentMsg.textContent = "Posted.";
-      await renderComments(post.id);
-    } catch (e) {
-      commentMsg.textContent = `Error: ${e?.message || String(e)}`;
-    }
-  };
-}
-
-await wireAuthButtons({ loginLinkId: "loginLink", logoutBtnId: "logoutBtn" });
-
-try {
-  const id = getId();
-  if (!id) throw new Error("Missing post id.");
-
-  const post = await getPostById(id);
-  if (!post) throw new Error("Post not found.");
-
-  // Draft access control: author only (status = 'draft')
-  if (post.status !== "published") {
-    const session = await getSession();
-    const isAuthor = session?.user?.id && session.user.id === post.author_id;
-    if (!isAuthor) throw new Error("This post is not published.");
+    };
   }
-
-  postTitle.textContent = post.title || "";
-
-// NEW: fill the spans inside #postMeta instead of overwriting it
-const authorSpan = postMeta.querySelector(".author-name");
-const dateSpan = postMeta.querySelector(".post-date");
-
-if (authorSpan) authorSpan.textContent = ""; // leave empty; CSS will show "Chose Anonymity"
-if (dateSpan) {
-  dateSpan.textContent =
-    `Published: ${fmtDate(post.created_at)}` + (post.status === "published" ? "" : " (DRAFT)");
 }
+document.addEventListener("DOMContentLoaded", async () => {
+  // Assign DOM nodes after DOM is ready
+  postTitle = document.getElementById("postTitle");
+  postMeta = document.getElementById("postMeta");
+  postContent = document.getElementById("postContent");
+  attachments = document.getElementById("attachments");
+  commentsEl = document.getElementById("comments");
 
-  // body is plain text in your schema; render safely
-  postContent.innerHTML = `<div style="white-space:pre-wrap;line-height:1.6">${escapeHtml(post.body || "")}</div>`;
+  commentGate = document.getElementById("commentGate");
+  commentText = document.getElementById("commentText");
+  commentBtn = document.getElementById("commentBtn");
+  commentMsg = document.getElementById("commentMsg");
 
-  await renderFiles(post.id);
-  await renderComments(post.id);
-  await wireCommentForm(post);
-} catch (e) {
-  postTitle.textContent = "Error";
-  postMeta.textContent = "";
-  postContent.innerHTML = `<div class="muted">${escapeHtml(e?.message || String(e))}</div>`;
-  attachments.innerHTML = "";
-  commentsEl.innerHTML = "";
-  commentGate.textContent = "";
-  commentBtn.disabled = true;
-  commentText.disabled = true;
-}
+  commentAnonPanel = document.getElementById("commentAnonPanel");
+  commentAnonToggle = document.getElementById("commentAnonToggle");
+  commentAnonStatus = document.getElementById("commentAnonStatus");
+
+  await wireAuthButtons({ loginLinkId: "loginLink", logoutBtnId: "logoutBtn" });
+
+  try {
+    const id = getId();
+    if (!id) throw new Error("Missing post id.");
+
+    const post = await getPostById(id);
+    if (!post) throw new Error("Post not found.");
+
+    // Draft access control: author only (status = 'draft')
+    if (post.status !== "published") {
+      const session = await getSession();
+      const isAuthor = session?.user?.id && session.user.id === post.author_id;
+      if (!isAuthor) throw new Error("This post is not published.");
+    }
+
+    if (postTitle) postTitle.textContent = post.title || "";
+
+    // NEW: fill the spans inside #postMeta instead of overwriting it
+    const authorSpan = postMeta?.querySelector(".author-name");
+    const dateSpan = postMeta?.querySelector(".post-date");
+
+    if (authorSpan) authorSpan.textContent = ""; // leave empty; CSS will show "Chose Anonymity"
+    if (dateSpan) {
+      dateSpan.textContent =
+        `Published: ${fmtDate(post.created_at)}` + (post.status === "published" ? "" : " (DRAFT)");
+    }
+
+    // body is plain text in your schema; render safely
+    if (postContent) postContent.innerHTML = `<div style="white-space:pre-wrap;line-height:1.6">${escapeHtml(post.body || "")}</div>`;
+
+    // Ensure header back button (in shared header) points to the forum thread list
+    try {
+      const headerBack = document.getElementById("headerBack");
+      if (headerBack) {
+        const forum = post?.forum_slug || "";
+        const backHref = forum ? `./forum.html?forum=${encodeURIComponent(forum)}` : "./index.html";
+        headerBack.setAttribute("data-back-href", backHref);
+        headerBack.style.display = "inline-flex";
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    await renderFiles(post.id);
+    await renderComments(post.id);
+    await wireCommentForm(post);
+  } catch (e) {
+    if (postTitle) postTitle.textContent = "Error";
+    if (postMeta) postMeta.textContent = "";
+    if (postContent) postContent.innerHTML = `<div class="muted">${escapeHtml(e?.message || String(e))}</div>`;
+    if (attachments) attachments.innerHTML = "";
+    if (commentsEl) commentsEl.innerHTML = "";
+    if (commentGate) commentGate.textContent = "";
+    if (commentBtn) commentBtn.disabled = true;
+    if (commentText) commentText.disabled = true;
+  }
+});

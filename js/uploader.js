@@ -8,7 +8,7 @@ export async function uploadAndRecordFiles({ postId, authorId, files }) {
 
   const results = [];
   for (const file of files) {
-    const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+      const safeName = file.name.replace(/[^\w.-]+/g, "_");
     const storagePath = `${authorId}/${postId}/${Date.now()}_${safeName}`;
 
     // Upload original file to Storage

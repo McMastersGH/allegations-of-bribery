@@ -27,62 +27,7 @@
 
 <body class="bg-page text-slate-200 antialiased">
   <!-- Top Bar (match index.html style) -->
-  <header class="sticky top-0 z-50 border-b border-stroke bg-panel/95 backdrop-blur">
-    <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-      <div class="flex items-center gap-3">
-        <img
-          src="./assets/ladyjusticebribed.png"
-          alt="Allegations of Bribery"
-          class="h-8 w-8 rounded bg-slate-700 object-contain p-1"
-        />
-        <a href="./index.html" class="text-lg font-semibold tracking-tight">Allegations of Bribery</a>
-      </div>
-
-      <nav class="hidden items-center gap-5 text-sm text-slate-300 md:flex">
-        <a class="hover:text-white" href="./index.html">Forums</a>
-        <a class="hover:text-white" href="#">Documents</a>
-        <a class="hover:text-white" href="#">Cases</a>
-      </nav>
-
-      <!-- Auth controls (JS toggles these) -->
-      <div class="flex items-center gap-3">
-        <a
-          id="loginLink"
-          href="./login.html"
-          class="rounded-md bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
-        >
-          Log in
-        </a>
-
-        <a
-          id="registerLink"
-          href="./signup.html"
-          class="rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
-        >
-          Register
-        </a>
-
-        <span
-          id="userBadge"
-          class="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-200"
-          style="display:none;"
-          title=""
-        >
-          <span class="inline-block h-2 w-2 rounded-full bg-emerald-400"></span>
-          <span id="userMenuBtn" class="max-w-[220px] truncate font-medium"></span>
-        </span>
-
-        <button
-          id="logoutBtn"
-          class="rounded-md border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
-          type="button"
-          style="display:none;"
-        >
-          Logout
-        </button>
-      </div>
-    </div>
-  </header>
+  <div id="siteHeader"></div>
 
   <main class="mx-auto max-w-6xl px-4 py-6 space-y-5">
     <!-- Forum header card -->
@@ -92,7 +37,6 @@
           <h1 id="forumTitle" class="text-xl font-semibold">Forum</h1>
           <p id="forumDesc" class="mt-1 text-sm text-slate-400"></p>
         </div>
-        <a href="index.html" class="text-sm text-sky-300 hover:text-sky-200">← Back</a>
       </div>
     </div>
 
@@ -120,6 +64,12 @@
       </div>
     </div>
   </main>
+
+  <!-- Inject shared shell (header/footer) -->
+  <script type="module">
+    import initShell from "./js/shell.js";
+    await initShell();
+  </script>
 
   <!-- Preserve next= for login, AND pass forum slug to write.html -->
   <script type="module">
@@ -151,6 +101,13 @@
       } catch {
         newThreadBtn.style.display = "none";
       }
+    }
+
+    // Show header back button for this page and point it to site index.
+    const headerBack = document.getElementById("headerBack");
+    if (headerBack) {
+      headerBack.setAttribute("data-back-href", "./index.html");
+      headerBack.style.display = "inline-flex";
     }
   </script>
 

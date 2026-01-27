@@ -28,7 +28,10 @@ export async function listPosts({
 
   let q = sb
     .from("posts")
-    .select("id, title, created_at, author_id, forum_slug, status, is_anonymous")
+    // ONLY NECESSARY CHANGE:
+    // - include author_label (your schema uses this, not posts.display_name)
+    // - keep author_id for internal use
+    .select("id, title, created_at, author_id, author_label, forum_slug, status, is_anonymous")
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -42,7 +45,15 @@ export async function listPosts({
 
   const { data, error } = await q;
   if (error) throw error;
-  return data || [];
+
+  // ONLY NECESSARY CHANGE:
+  // Back-compat: some UI code still expects `display_name` on the post object.
+  const rows = (data || []).map((p) => ({
+    ...p,
+    display_name: p?.is_anonymous ? "Anonymous" : (p?.author_label || "Member"),
+  }));
+
+  return rows;
 }
 
 export async function getPostById(id) {
@@ -50,12 +61,18 @@ export async function getPostById(id) {
 
   const { data, error } = await sb
     .from("posts")
-    .select("id, title, body, status, created_at, author_id, forum_slug, is_anonymous")
+    // ONLY NECESSARY CHANGE: include author_label + back-compat display_name
+    .select("id, title, body, status, created_at, author_id, author_label, forum_slug, is_anonymous")
     .eq("id", id)
     .maybeSingle();
 
   if (error) throw error;
-  return data;
+  if (!data) return data;
+
+  return {
+    ...data,
+    display_name: data?.is_anonymous ? "Anonymous" : (data?.author_label || "Member"),
+  };
 }
 
 /**
@@ -80,17 +97,31 @@ export async function createPost(post) {
   if (!forum_slug || !String(forum_slug).trim()) throw new Error("createPost: forum_slug is required");
   if (!author_id) throw new Error("createPost: author_id is required");
 
+  const forumSlugTrim = String(forum_slug).trim();
+
+  // Ensure the forum exists. Some deployments may not pre-populate forums,
+  // and the DB enforces a foreign key constraint on posts.forum_slug.
+  // Upsert a minimal forum row (slug + a humanized title) so posts can be created.
+  try {
+    const prettyTitle = forumSlugTrim.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    await sb.from("forums").upsert({ slug: forumSlugTrim, title: prettyTitle }, { onConflict: "slug" });
+  } catch (e) {
+    // If forum upsert fails for any reason, surface the error.
+    throw e;
+  }
+
   const { data, error } = await sb
     .from("posts")
     .insert([{
       title: String(title).trim(),
       body: String(body),
-      forum_slug: String(forum_slug).trim(),
+      forum_slug: forumSlugTrim,
       author_id,
       status,
       is_anonymous: Boolean(is_anonymous),
     }])
-    .select("id,title,created_at,author_id,forum_slug,status,is_anonymous")
+    // ONLY NECESSARY CHANGE: include author_label in returned row (helps UI)
+    .select("id,title,created_at,author_id,author_label,forum_slug,status,is_anonymous")
     .single();
 
   if (error) throw error;

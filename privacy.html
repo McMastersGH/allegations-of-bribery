@@ -12,21 +12,7 @@
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
-  <header class="site-header">
-    <div class="brand">
-      <img src="./assets/ladyjusticebribed.png" alt="Allegations of Bribery logo" class="logo" />
-      <div>
-        <h1>Allegations of Bribery</h1>
-        <p class="muted">Public read. Approved authors only.</p>
-      </div>
-    </div>
-    <nav class="nav">
-      <a class="btn ghost" href="./index.html">Home</a>
-      <a class="btn ghost" href="./write.html">Write</a>
-      <a class="btn ghost" href="./login.html" id="loginLink">Login</a>
-      <button class="btn" id="logoutBtn" style="display:none;">Logout</button>
-    </nav>
-  </header>
+  <div id="siteHeader"></div>
 
   <main class="container">
     <section class="card legal">
@@ -74,16 +60,17 @@
     </section>
   </main>
 
-  <footer class="container footer">
-    <div class="muted">Powered by Supabase + GitHub Pages</div>
-  </footer>
+  <div id="siteFooter"></div>
+
+  <script type="module">
+    import initShell from "./js/shell.js";
+    await initShell();
+  </script>
 
   <script type="module">
     import { wireAuthUI } from "./js/auth.js";
     wireAuthUI();
   </script>
 </body>
-
-<a class="btn ghost" href="./login.html?next=" id="loginLink">Login</a>
 
 </html>

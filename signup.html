@@ -4,37 +4,25 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sign up — Allegations of Bribery</title>
-  <link rel="icon" href="./favicon.ico">
+  <link rel="icon" href="./favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="./css/styles.css" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { panel: "#111827", panel2: "#0b0e13", stroke: "#1f2933", page: "#0f1216" }
+        }
+      }
+    };
+  </script>
 </head>
 
-<body>
-  <header class="site-header">
-    <div class="brand">
-      <img src="./assets/ladyjusticebribed.png" alt="logo" class="logo" />
-      <div>
-        <h1>Allegations of Bribery</h1>
-        <p class="muted">Create account</p>
-      </div>
-    </div>
+  <body class="bg-page text-slate-200 antialiased">
+  <div id="siteHeader"></div>
 
-    <nav class="nav" style="display:flex; gap:10px; align-items:center;">
-      <a class="btn ghost" href="./index.html">Home</a>
-
-      <!-- Normalized auth controls (same IDs as index/forum) -->
-      <a class="btn ghost" href="./login.html" id="loginLink">Log in</a>
-      <a class="btn ghost" href="./signup.html" id="registerLink">Register</a>
-
-      <span id="userBadge" class="user-badge" style="display:none;">
-        <span class="dot" aria-hidden="true" style="display:inline-block;width:8px;height:8px;border-radius:999px;margin-right:6px;background:#34d399;"></span>
-        <span id="userMenuBtn" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-      </span>
-
-      <button class="btn ghost" id="logoutBtn" type="button" style="display:none;">Logout</button>
-    </nav>
-  </header>
-
-  <main class="container">
+  <main class="mx-auto max-w-6xl px-4 py-6">
     <section class="card narrow">
       <h2>Sign up</h2>
 
@@ -74,6 +62,10 @@
   </main>
 
   <!-- Normalize auth UI toggling (same pattern as index/forum) -->
+  <script type="module">
+    import initShell from "./js/shell.js";
+    await initShell();
+  </script>
   <script type="module">
     import { wireAuthButtons, signUp, resendSignupEmail } from "./js/auth.js";
 
