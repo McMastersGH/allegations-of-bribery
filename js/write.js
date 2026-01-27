@@ -1,164 +1,151 @@
 // js/write.js
-import { wireAuthButtons, getUser } from "./auth.js";
-import { createPost, ensureAuthorProfile, getMyProfile } from "./blogApi.js";
+import { wireAuthButtons, getSession } from "./auth.js";
+import { ensureAuthorProfile, getMyProfile, createPost } from "./blogApi.js";
 
-function qs(id) {
-  return document.getElementById(id);
+/**
+ * Write page (new thread)
+ * URL: write.html?forum=<slug>
+ * Requires: logged-in + approved author
+ */
+
+function $(id) { return document.getElementById(id); }
+
+function getForumSlug() {
+  const u = new URL(window.location.href);
+  return (u.searchParams.get("forum") || "").trim() || "general-topics";
 }
 
-function cleanError(err) {
-  if (!err) return "Unknown error.";
-  if (typeof err === "string") return err;
-  if (err.message) return err.message;
-  try {
-    return JSON.stringify(err);
-  } catch {
-    return String(err);
-  }
-}
+function setText(el, text) { if (el) el.textContent = text ?? ""; }
+function show(el) { if (el) el.style.display = ""; }
+function hide(el) { if (el) el.style.display = "none"; }
 
 function setStatus(msg, isError = false) {
-  const el = qs("status");
-  if (!el) return;
-  el.textContent = msg || "";
-  el.style.color = isError ? "#f87171" : ""; // red-400
+  // Support both old/new markup
+  const status = $("status") || $("statusMsg");
+  const err = $("errorMsg");
+
+  if (err) {
+    if (isError) { setText(err, msg); show(err); }
+    else { setText(err, ""); hide(err); }
+  }
+  if (status) setText(status, isError ? "" : msg);
 }
 
-function getForumFromUrl() {
-  const u = new URL(window.location.href);
-  return (u.searchParams.get("forum") || "").trim();
+function disablePublishing(disabled = true) {
+  const publishBtn = $("publishBtn");
+  if (publishBtn) publishBtn.disabled = !!disabled;
+}
+
+function loginRedirect(nextUrl) {
+  const next = encodeURIComponent(nextUrl || (window.location.pathname + window.location.search));
+  window.location.href = `./login.html?next=${next}`;
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  // Header auth UI (if present on this page)
-  try {
-    await wireAuthButtons();
-  } catch {
-    // ignore
+  // Header auth UI
+  try { await wireAuthButtons(); } catch (e) { console.warn("wireAuthButtons failed", e); }
+
+  // Elements (support both old/new markup)
+  const form = $("publishForm") || $("composeForm");
+  const titleEl = $("titleInput") || $("title");
+  const bodyEl = $("bodyInput") || $("body");
+  const anonEl = $("anonToggle") || $("anonCheck") || $("anon");
+  const backEl = $("backLink") || $("cancelBtn") || $("cancelLink");
+  const forumLabelEl = $("forumLabel") || $("forumSlug") || $("forumDesc");
+
+  const slug = getForumSlug();
+
+  // Back link
+  if (backEl) {
+    backEl.addEventListener("click", (e) => {
+      e.preventDefault();
+      window.location.href = `./forum.html?forum=${encodeURIComponent(slug)}`;
+    });
   }
 
-  const forumSelect = qs("forumSelect");
-  const titleEl = qs("title");
-  const bodyEl = qs("body");
-  const anonEl = qs("anon");
-  const publishBtn = qs("publishBtn");
-  const cancelBtn = qs("cancelBtn");
+  // Forum label (if present)
+  if (forumLabelEl) forumLabelEl.textContent = slug;
 
-  // If coming from a specific forum link, preselect it
-  const forumFromUrl = getForumFromUrl();
-  if (forumSelect && forumFromUrl) {
-    // If the option exists, set it; if not, leave as-is
-    const hasOption = Array.from(forumSelect.options || []).some((o) => o.value === forumFromUrl);
-    if (hasOption) forumSelect.value = forumFromUrl;
-  }
-
-  // Must be logged in to write
-  const user = await getUser();
-  if (!user) {
-    setStatus("Please log in to create a thread.", true);
-    if (publishBtn) publishBtn.disabled = true;
+  // Require session
+  const session = await getSession();
+  if (!session?.user) {
+    setStatus("You must be logged in to start a new thread.", true);
+    disablePublishing(true);
+    setTimeout(() => loginRedirect(`./write.html?forum=${encodeURIComponent(slug)}`), 600);
     return;
   }
 
-  // Ensure author profile exists and fetch it
-  let myProfile = null;
-  try {
-    await ensureAuthorProfile();
-    myProfile = await getMyProfile();
-  } catch (err) {
-    setStatus(`Unable to load author profile: ${cleanError(err)}`, true);
-    if (publishBtn) publishBtn.disabled = true;
+  // Ensure author profile exists & load it (approval gate)
+  const ensured = await ensureAuthorProfile(session.user, { defaultApproved: false });
+  if (!ensured.ok) {
+    setStatus(`Unable to load author profile: ${ensured.error}`, true);
+    disablePublishing(true);
     return;
   }
 
-  // If the profile cannot be read due to RLS, myProfile may be null
-  if (!myProfile || !myProfile.user_id) {
-    setStatus("Unable to load author profile: permission denied for table authors", true);
-    if (publishBtn) publishBtn.disabled = true;
+  const myProfileRes = await getMyProfile(session.user.id);
+  if (!myProfileRes.ok) {
+    setStatus(`Unable to load author profile: ${myProfileRes.error}`, true);
+    disablePublishing(true);
     return;
   }
 
-  // Read-only if not approved
-  if (!myProfile.approved) {
+  const approved = !!myProfileRes.profile?.approved;
+  if (!approved) {
     setStatus(
       "Read-only: your account is not approved to publish yet. You can browse forums, but you cannot post.",
       true
     );
-    if (publishBtn) publishBtn.disabled = true;
-  } else {
-    setStatus("");
-    if (publishBtn) publishBtn.disabled = false;
+    disablePublishing(true);
+    return;
   }
 
-  // Cancel goes back to the forum page you came from (or index)
-  if (cancelBtn) {
-    cancelBtn.addEventListener("click", (e) => {
+  async function doPublish() {
+    setStatus("Publishing...");
+    const title = (titleEl?.value || "").trim();
+    const body = (bodyEl?.value || "").trim();
+    const isAnonymous = !!(anonEl?.checked);
+
+    if (!title) return setStatus("Title is required.", true);
+    if (!body) return setStatus("Body is required.", true);
+
+    disablePublishing(true);
+
+    const res = await createPost({
+      forum_slug: slug,
+      title,
+      body,
+      status: "published",
+      is_anonymous: isAnonymous
+    });
+
+    if (!res.ok) {
+      setStatus(res.error || "Publish failed.", true);
+      disablePublishing(false);
+      return;
+    }
+
+    // Success
+    window.location.href = `./forum.html?forum=${encodeURIComponent(slug)}`;
+  }
+
+  // IMPORTANT: prevent page refresh by handling FORM SUBMIT
+  if (form) {
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const slug = (forumSelect?.value || forumFromUrl || "").trim();
-      window.location.href = slug ? `./forum.html?forum=${encodeURIComponent(slug)}` : "./index.html";
+      await doPublish();
     });
   }
 
-  // Publish
+  // Also bind click as a safety net
+  const publishBtn = $("publishBtn");
   if (publishBtn) {
     publishBtn.addEventListener("click", async (e) => {
       e.preventDefault();
-
-      if (!myProfile?.approved) {
-        setStatus(
-          "Read-only: your account is not approved to publish yet. You can browse forums, but you cannot post.",
-          true
-        );
-        return;
-      }
-
-      const forumSlug = (forumSelect?.value || forumFromUrl || "").trim();
-      const title = (titleEl?.value || "").trim();
-      const body = (bodyEl?.value || "").trim();
-      const isAnonymous = !!anonEl?.checked;
-
-      if (!forumSlug) {
-        setStatus("Please select a forum.", true);
-        return;
-      }
-      if (!title) {
-        setStatus("Title is required.", true);
-        return;
-      }
-      if (!body) {
-        setStatus("Body is required.", true);
-        return;
-      }
-
-      publishBtn.disabled = true;
-      setStatus("Publishing...");
-
-      try {
-        // IMPORTANT FIX:
-        // The old file referenced `profile.user_id` (undefined). Use `myProfile.user_id`.
-        const payload = {
-          forumSlug,
-          title,
-          body,
-          authorId: myProfile.user_id,          // always set (even if anonymous)
-          isAnonymous: isAnonymous,             // your DB can hide name when true
-          displayName: isAnonymous ? null : (myProfile.display_name || null),
-        };
-
-        const res = await createPost(payload);
-
-        if (!res?.ok) {
-          throw new Error(res?.error || "Publish failed.");
-        }
-
-        setStatus("Published.");
-        // After publish, go back to the forum
-        window.location.href = `./forum.html?forum=${encodeURIComponent(forumSlug)}`;
-      } catch (err) {
-        console.error("Publish error:", err);
-        setStatus(`Publish failed: ${cleanError(err)}`, true);
-        publishBtn.disabled = false;
-      }
+      await doPublish();
     });
   }
+
+  setStatus("");
+  disablePublishing(false);
 });

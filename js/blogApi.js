@@ -145,3 +145,53 @@ export async function listPostFiles(postId) {
   if (error) throw error;
   return data || [];
 }
+
+// ---------------------------------------------------------------------------
+// Compatibility helpers for write.js (author gating + thread creation)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch the current author's profile.
+ * write.js expects: { user_id, display_name, approved, is_anonymous }
+ */
+export async function getAuthorProfile(userId) {
+  const sb = getSupabaseClient();
+  const { data, error } = await sb
+    .from("authors")
+    .select("user_id, display_name, approved, is_anonymous")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/**
+ * Set whether an author is posting anonymously.
+ */
+export async function setAuthorAnonymousFlag(userId, isAnonymous) {
+  const sb = getSupabaseClient();
+  const { error } = await sb
+    .from("authors")
+    .update({ is_anonymous: !!isAnonymous })
+    .eq("user_id", userId);
+
+  if (error) throw error;
+  return { ok: true };
+}
+
+/**
+ * Create a new top-level thread.
+ * In this schema, a "thread" is simply a post with a forum_slug.
+ */
+export async function createThread({ forum_slug, title, body, author_id, is_anonymous }) {
+  // Map to the existing createPost API in this file
+  return await createPost({
+    forum_slug,
+    title,
+    body,
+    author_id,
+    is_anonymous: !!is_anonymous,
+    status: "published",
+  });
+}
