@@ -52,6 +52,26 @@ export async function signUp(
 
     if (error) return { ok: false, error: error.message };
 
+    // Ensure there's an `authors` row for this user so future posts have an
+    // `authors.display_name` available. If `data.user.id` is present (it usually
+    // is even when email confirmation is required), upsert the authors row.
+    try {
+      const userId = data?.user?.id;
+      if (userId) {
+        await sb.from("authors").upsert(
+          {
+            user_id: userId,
+            display_name: displayName || "",
+            approved: false,
+            is_anonymous: false,
+          },
+          { onConflict: "user_id" }
+        );
+      }
+    } catch (e) {
+      // Non-fatal: signup succeeded but authors upsert failed — ignore.
+    }
+
     const needsEmailConfirm = !data?.session;
     return { ok: true, data, needsEmailConfirm };
   } catch (e) {
@@ -115,7 +135,10 @@ export async function getMyAuthorStatus() {
       approved: !!p?.approved,
       is_anonymous: !!p?.is_anonymous,
       user_id: session.user.id,
-      display_name: p?.display_name || null,
+      display_name:
+        p?.display_name ||
+        (session.user?.user_metadata && (session.user.user_metadata.display_name || session.user.user_metadata.full_name)) ||
+        null,
     };
   } catch (e) {
     return {
