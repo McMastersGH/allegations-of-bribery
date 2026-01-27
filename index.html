@@ -319,7 +319,7 @@
     try {
       await populateForumCounts();
     } catch (e) {
-      console.error('populateForumCounts failed:', e);
+      // silently ignore forum counts errors in production
     }
   </script>
 
