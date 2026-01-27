@@ -245,3 +245,36 @@ body::before {
   font-style: italic;
   font-weight: 500;
 }
+
+/* Small inline spinner for loading counts */
+.count-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255,255,255,0.12);
+  border-top-color: rgba(99,102,241,0.95); /* indigo-500 */
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+  vertical-align: text-bottom;
+  margin-right: 6px;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Skeleton loading lines used while counts fetch (subtle, low-contrast)
+   Use width inline styles to vary length. */
+.skeleton-line {
+  display: inline-block;
+  height: 10px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 100%);
+  border-radius: 6px;
+  animation: shimmer 1200ms linear infinite;
+  vertical-align: text-bottom;
+  margin-right: 8px;
+}
+@keyframes shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: 200px 0; }
+}
