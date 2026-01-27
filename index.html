@@ -237,7 +237,7 @@
         </div>
 
         <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <a href="#" class="group rounded-lg border border-stroke bg-panel p-4 transition hover:bg-slate-800">
+          <a href="forum.html?forum=judicial-misconduct" class="group rounded-lg border border-stroke bg-panel p-4 transition hover:bg-slate-800">
             <div class="flex items-start gap-3">
               <div class="mt-1 flex h-9 w-9 items-center justify-center rounded-md bg-slate-700 text-slate-200">
                 <span class="text-xs font-bold">JM</span>
@@ -258,7 +258,7 @@
             </div>
           </a>
 
-          <a href="#" class="group rounded-lg border border-stroke bg-panel p-4 transition hover:bg-slate-800">
+          <a href="forum.html?forum=public-records" class="group rounded-lg border border-stroke bg-panel p-4 transition hover:bg-slate-800">
             <div class="flex items-start gap-3">
               <div class="mt-1 flex h-9 w-9 items-center justify-center rounded-md bg-slate-700 text-slate-200">
                 <span class="text-xs font-bold">PR</span>
@@ -306,7 +306,8 @@
   </main>
 
   <script>
-    document.getElementById("y").textContent = new Date().getFullYear();
+    const __y = document.getElementById("y");
+    if (__y) __y.textContent = new Date().getFullYear();
   </script>
   <script type="module">
     import initShell from "./js/shell.js";

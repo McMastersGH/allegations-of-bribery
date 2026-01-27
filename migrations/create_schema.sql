@@ -147,3 +147,24 @@ DROP TRIGGER IF EXISTS forums_comments_count_trig ON comments;
 CREATE TRIGGER forums_comments_count_trig
 AFTER INSERT OR UPDATE OR DELETE ON comments
 FOR EACH ROW EXECUTE FUNCTION forums__maintain_comments_count();
+
+-- Backfill existing counts so `forums.posts_count` and `forums.comments_count` reflect current data.
+-- Run once after deploying the migration.
+-- Note: this is safe to re-run.
+UPDATE forums SET posts_count = COALESCE(sub.threads, 0)
+FROM (
+  SELECT forum_slug, COUNT(*) AS threads
+  FROM posts
+  WHERE status = 'published'
+  GROUP BY forum_slug
+) AS sub
+WHERE forums.slug = sub.forum_slug;
+
+UPDATE forums SET comments_count = COALESCE(sub.cnt, 0)
+FROM (
+  SELECT p.forum_slug, COUNT(c.*) AS cnt
+  FROM comments c
+  JOIN posts p ON p.id = c.post_id
+  GROUP BY p.forum_slug
+) AS sub
+WHERE forums.slug = sub.forum_slug;
