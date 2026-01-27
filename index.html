@@ -310,7 +310,16 @@
   </script>
   <script type="module">
     import initShell from "./js/shell.js";
+    import { populateForumCounts } from "./js/forumCounts.js";
+
     await initShell();
+
+    // Populate forum post/thread counts on the landing page
+    try {
+      await populateForumCounts();
+    } catch (e) {
+      console.error('populateForumCounts failed:', e);
+    }
   </script>
 
   <!-- ONLY NECESSARY CHANGE: show Write link when logged in -->
