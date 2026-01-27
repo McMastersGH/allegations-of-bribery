@@ -55,7 +55,7 @@ function renderThreads(rows) {
     .map((r) => {
       const title = escapeHtml(r.title);
       const when = r.created_at ? new Date(r.created_at).toLocaleString() : "";
-      const by = escapeHtml(r.display_name || r.author_label || "Unknown");
+      const by = escapeHtml(r.display_name || "Unknown");
       return `
         <a href="./post.html?id=${encodeURIComponent(r.id)}"
            class="block px-2 py-4 hover:bg-slate-900/40">
@@ -89,7 +89,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   setStatus("Loading…");
 
   try {
-    // Use shared API which normalizes `display_name` from `author_label`.
+    // Use shared API which provides `display_name` on each post.
     const rows = await listPosts({ limit: 50, forum_slug: slug, publishedOnly: true });
     setStatus("");
     renderThreads(rows || []);

@@ -29,7 +29,7 @@ export async function listPosts({
   let q = sb
     .from("posts")
     // ONLY NECESSARY CHANGE:
-    // - include author_label (your schema uses this, not posts.display_name)
+    // - include `display_name` (use the posts.display_name column)
     // - keep author_id for internal use
     .select("id, title, created_at, author_id, display_name, forum_slug, status, is_anonymous")
     .order("created_at", { ascending: false })
@@ -47,7 +47,7 @@ export async function listPosts({
   if (error) throw error;
 
   // Back-compat: some UI code still expects `display_name` on the post object.
-  // If `author_label` is not set on the post row, attempt to look up the
+  // If `display_name` is not set on the post row, attempt to look up the
   // author's `display_name` from the `authors` table and use that as a
   // fallback before finally falling back to "Member".
   const rowsRaw = data || [];
@@ -148,7 +148,7 @@ export async function createPost(post) {
     throw e;
   }
 
-  // Determine an `author_label` to store on the post so UIs can show a human
+  // Determine a `display_name` to store on the post so UIs can show a human
   // name even if the `authors` table isn't populated. Prefer the explicit
   // authors.display_name, then the authenticated user's metadata, then null.
   let authorLabel = null;
@@ -186,7 +186,7 @@ export async function createPost(post) {
       status,
       is_anonymous: Boolean(is_anonymous),
     }])
-    // ONLY NECESSARY CHANGE: include author_label in returned row (helps UI)
+    // ONLY NECESSARY CHANGE: include display_name in returned row (helps UI)
     .select("id,title,created_at,author_id,display_name,forum_slug,status,is_anonymous")
     .single();
 
