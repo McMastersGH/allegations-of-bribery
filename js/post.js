@@ -76,8 +76,9 @@ async function renderComments(postId) {
   for (const c of comments) {
     const el = document.createElement("div");
     el.className = "item";
+    const commenter = c.is_anonymous ? "Anonymous" : (c.display_name || "Member");
     el.innerHTML = `
-      <div class="muted"><b>${escapeHtml(c.display_name || "Member")}</b> • ${escapeHtml(fmtDate(c.created_at))}</div>
+      <div class="muted"><b>${escapeHtml(commenter)}</b> • ${escapeHtml(fmtDate(c.created_at))}</div>
       <div class="prose" style="margin-top:8px;white-space:pre-wrap">${escapeHtml(c.body)}</div>
     `;
     commentsEl.appendChild(el);
@@ -159,11 +160,10 @@ async function wireCommentForm(post) {
         // Use current toggle position (UI) as source of truth
         const status = await getMyAuthorStatus(); // { user_id, display_name, approved, is_anonymous } or null
 
-        const displayName = status?.is_anonymous
-          ? "Chose Anonymity"
-          : (status?.display_name || "Member");
+        const isAnon = !!status?.is_anonymous;
+        const displayName = status?.display_name || null;
 
-        await addComment(post.id, body, displayName);
+        await addComment(post.id, body, displayName, isAnon);
 
         if (commentText) commentText.value = "";
         if (commentMsg) commentMsg.textContent = "Posted.";
@@ -213,7 +213,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const authorSpan = postMeta?.querySelector(".author-name");
     const dateSpan = postMeta?.querySelector(".post-date");
 
-    if (authorSpan) authorSpan.textContent = ""; // leave empty; CSS will show "Chose Anonymity"
+    if (authorSpan) authorSpan.textContent = post?.is_anonymous ? "Anonymous" : (post?.display_name || "Member");
     if (dateSpan) {
       dateSpan.textContent =
         `Published: ${fmtDate(post.created_at)}` + (post.status === "published" ? "" : " (DRAFT)");

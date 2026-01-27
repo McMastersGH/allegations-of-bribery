@@ -31,7 +31,7 @@ export async function listPosts({
     // ONLY NECESSARY CHANGE:
     // - include author_label (your schema uses this, not posts.display_name)
     // - keep author_id for internal use
-    .select("id, title, created_at, author_id, author_label, forum_slug, status, is_anonymous")
+    .select("id, title, created_at, author_id, display_name, forum_slug, status, is_anonymous")
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -46,11 +46,33 @@ export async function listPosts({
   const { data, error } = await q;
   if (error) throw error;
 
-  // ONLY NECESSARY CHANGE:
   // Back-compat: some UI code still expects `display_name` on the post object.
-  const rows = (data || []).map((p) => ({
+  // If `author_label` is not set on the post row, attempt to look up the
+  // author's `display_name` from the `authors` table and use that as a
+  // fallback before finally falling back to "Member".
+  const rowsRaw = data || [];
+
+  // Collect author_ids that need lookup (where display_name is falsy)
+  const missingAuthorIds = [...new Set(
+    rowsRaw.filter((p) => !p?.display_name).map((p) => p.author_id).filter(Boolean)
+  )];
+
+  let authorsMap = {};
+  if (missingAuthorIds.length) {
+    const { data: authorsData, error: authorsErr } = await sb
+      .from("authors")
+      .select("user_id, display_name")
+      .in("user_id", missingAuthorIds);
+    if (!authorsErr && Array.isArray(authorsData)) {
+      authorsMap = Object.fromEntries((authorsData || []).map((a) => [a.user_id, a.display_name]));
+    }
+  }
+
+  const rows = rowsRaw.map((p) => ({
     ...p,
-    display_name: p?.is_anonymous ? "Anonymous" : (p?.author_label || "Member"),
+    display_name: p?.is_anonymous
+      ? "Anonymous"
+      : (p?.display_name || authorsMap[p.author_id] || "Member"),
   }));
 
   return rows;
@@ -61,17 +83,33 @@ export async function getPostById(id) {
 
   const { data, error } = await sb
     .from("posts")
-    // ONLY NECESSARY CHANGE: include author_label + back-compat display_name
-    .select("id, title, body, status, created_at, author_id, author_label, forum_slug, is_anonymous")
+    // ONLY NECESSARY CHANGE: include display_name for back-compat
+    .select("id, title, body, status, created_at, author_id, display_name, forum_slug, is_anonymous")
     .eq("id", id)
     .maybeSingle();
 
   if (error) throw error;
   if (!data) return data;
 
+  // If the row lacks a stored `display_name`, try to read the author's profile
+  // to obtain a display_name fallback.
+  let fallback = null;
+  if (!data?.display_name && data?.author_id) {
+    try {
+      const { data: authorRow, error: authorErr } = await sb
+        .from("authors")
+        .select("user_id, display_name")
+        .eq("user_id", data.author_id)
+        .maybeSingle();
+      if (!authorErr && authorRow) fallback = authorRow.display_name;
+    } catch (e) {
+      // ignore lookup failure; we'll fall back to "Member"
+    }
+  }
+
   return {
     ...data,
-    display_name: data?.is_anonymous ? "Anonymous" : (data?.author_label || "Member"),
+    display_name: data?.is_anonymous ? "Anonymous" : (data?.display_name || fallback || "Member"),
   };
 }
 
@@ -110,6 +148,33 @@ export async function createPost(post) {
     throw e;
   }
 
+  // Determine an `author_label` to store on the post so UIs can show a human
+  // name even if the `authors` table isn't populated. Prefer the explicit
+  // authors.display_name, then the authenticated user's metadata, then null.
+  let authorLabel = null;
+  try {
+    if (author_id) {
+      const { data: aRow, error: aErr } = await sb
+        .from("authors")
+        .select("display_name")
+        .eq("user_id", author_id)
+        .maybeSingle();
+      if (!aErr && aRow?.display_name) authorLabel = aRow.display_name;
+    }
+  } catch {
+    // ignore lookup errors
+  }
+
+  if (!authorLabel) {
+    try {
+      const { data: userData } = await sb.auth.getUser();
+      const u = userData?.user;
+      authorLabel = (u?.user_metadata && (u.user_metadata.display_name || u.user_metadata.full_name)) || null;
+    } catch {
+      // ignore
+    }
+  }
+
   const { data, error } = await sb
     .from("posts")
     .insert([{
@@ -117,11 +182,12 @@ export async function createPost(post) {
       body: String(body),
       forum_slug: forumSlugTrim,
       author_id,
+      display_name: authorLabel,
       status,
       is_anonymous: Boolean(is_anonymous),
     }])
     // ONLY NECESSARY CHANGE: include author_label in returned row (helps UI)
-    .select("id,title,created_at,author_id,author_label,forum_slug,status,is_anonymous")
+    .select("id,title,created_at,author_id,display_name,forum_slug,status,is_anonymous")
     .single();
 
   if (error) throw error;
@@ -155,7 +221,7 @@ export async function addComment(postId, body, displayName, isAnonymous = false)
     .insert([{
       post_id: postId,
       body,
-      display_name: displayName || "Member",
+      display_name: isAnonymous ? null : (displayName || null),
       is_anonymous: Boolean(isAnonymous),
     }])
     .select("id")
