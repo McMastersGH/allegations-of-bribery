@@ -1,6 +1,14 @@
 // js/blogApi.js
 import { getSupabaseClient } from "./supabaseClient.js";
 
+function normalizeId(raw) {
+  if (!raw) return raw;
+  const s = String(raw || "").trim();
+  const m = s.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+  if (m) return m[0];
+  return s.replace(/[.,;:]+$/g, "");
+}
+
 export function slugify(input) {
   return String(input || "")
     .toLowerCase()
@@ -81,11 +89,13 @@ export async function listPosts({
 export async function getPostById(id) {
   const sb = getSupabaseClient();
 
+  const cleaned = normalizeId(id);
+
   const { data, error } = await sb
     .from("posts")
     // ONLY NECESSARY CHANGE: include display_name for back-compat
     .select("id, title, body, status, created_at, author_id, display_name, forum_slug, is_anonymous")
-    .eq("id", id)
+    .eq("id", cleaned)
     .maybeSingle();
 
   if (error) throw error;
@@ -99,7 +109,7 @@ export async function getPostById(id) {
       const { data: authorRow, error: authorErr } = await sb
         .from("authors")
         .select("user_id, display_name")
-        .eq("user_id", data.author_id)
+        .eq("user_id", normalizeId(data.author_id))
         .maybeSingle();
       if (!authorErr && authorRow) fallback = authorRow.display_name;
     } catch (e) {
@@ -200,7 +210,7 @@ export async function updatePost(postId, updates) {
   const { data, error } = await sb
     .from("posts")
     .update(updates)
-    .eq("id", postId)
+    .eq("id", normalizeId(postId))
     .select("id")
     .maybeSingle();
 
@@ -214,7 +224,7 @@ export async function deletePost(postId) {
   const { data, error } = await sb
     .from("posts")
     .delete()
-    .eq("id", postId)
+    .eq("id", normalizeId(postId))
     .select("id")
     .maybeSingle();
 
@@ -228,7 +238,7 @@ export async function listComments(postId) {
   const { data, error } = await sb
     .from("comments")
     .select("id, body, display_name, created_at, is_anonymous, author_id, parent_id")
-    .eq("post_id", postId)
+    .eq("post_id", normalizeId(postId))
     .order("created_at", { ascending: true });
 
   if (error) throw error;
@@ -259,10 +269,10 @@ export async function addComment(postId, body, displayName, isAnonymous = false,
   }
 
   // Support optional parent_id for replies (passed via last argument)
-  const maybeParentId = arguments.length >= 6 ? arguments[5] : null;
+  const maybeParentId = arguments.length >= 6 ? normalizeId(arguments[5]) : null;
 
   const insertRow = {
-    post_id: postId,
+    post_id: normalizeId(postId),
     body,
     display_name: isAnonymous ? null : (displayName || null),
     is_anonymous: Boolean(isAnonymous),
@@ -286,7 +296,7 @@ export async function updateComment(commentId, body) {
   const { data, error } = await sb
     .from("comments")
     .update({ body })
-    .eq("id", commentId)
+    .eq("id", normalizeId(commentId))
     .select("id")
     .maybeSingle();
 
@@ -300,7 +310,7 @@ export async function deleteComment(commentId) {
   const { data, error } = await sb
     .from("comments")
     .delete()
-    .eq("id", commentId)
+    .eq("id", normalizeId(commentId))
     .select("id")
     .maybeSingle();
 
@@ -313,7 +323,7 @@ export async function listPostFiles(postId) {
   const { data, error } = await sb
     .from("post_files")
     .select("id, bucket, object_path, original_name, mime_type, created_at")
-    .eq("post_id", postId)
+    .eq("post_id", normalizeId(postId))
     .order("created_at", { ascending: true });
 
   if (error) throw error;
@@ -332,7 +342,7 @@ export async function deletePostFile(fileId) {
   const { data: row, error: rowErr } = await sb
     .from('post_files')
     .select('id, bucket, object_path')
-    .eq('id', fileId)
+    .eq('id', normalizeId(fileId))
     .maybeSingle();
   if (rowErr) throw rowErr;
   if (!row) throw new Error('post file not found');
@@ -350,7 +360,7 @@ export async function deletePostFile(fileId) {
   const { data, error } = await sb
     .from('post_files')
     .delete()
-    .eq('id', fileId)
+    .eq('id', normalizeId(fileId))
     .select('id')
     .maybeSingle();
 
@@ -371,7 +381,7 @@ export async function getAuthorProfile(userId) {
   const { data, error } = await sb
     .from("authors")
     .select("user_id, display_name, approved, is_anonymous, timezone")
-    .eq("user_id", userId)
+    .eq("user_id", normalizeId(userId))
     .maybeSingle();
 
   if (error) throw error;
