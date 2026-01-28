@@ -57,6 +57,7 @@
         >
           New thread
         </a>
+        <div id="newThreadNotice" class="text-sm" style="margin-left:8px;display:inline-block;color:var(--danger);"></div>
       </div>
 
       <div id="threads" class="mt-4 divide-y divide-stroke">
@@ -87,16 +88,22 @@
 
     // 3) New thread button: show only when logged in, and carry forum slug
     const newThreadBtn = document.getElementById("newThreadBtn");
+    const newThreadNotice = document.getElementById("newThreadNotice");
     if (newThreadBtn) {
       try {
         const session = await getSession();
         if (!session) {
           newThreadBtn.style.display = "none";
+          if (newThreadNotice) {
+            newThreadNotice.textContent = 'Login required to start a thread.';
+            newThreadNotice.style.color = 'var(--danger)';
+          }
         } else {
           const u = new URL(window.location.href);
           const forum = u.searchParams.get("forum") || "";
           newThreadBtn.href = forum ? `./write.html?forum=${encodeURIComponent(forum)}` : "./write.html";
           newThreadBtn.style.display = "inline-flex";
+          if (newThreadNotice) newThreadNotice.textContent = '';
         }
       } catch {
         newThreadBtn.style.display = "none";

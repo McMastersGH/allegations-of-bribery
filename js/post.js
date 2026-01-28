@@ -624,7 +624,10 @@ async function wireCommentForm(post) {
 
   // Logged out: disable comment form + hide anon toggle UI
   if (!session) {
-    if (commentGate) commentGate.textContent = "To comment, please log in.";
+      if (commentGate) {
+        commentGate.textContent = "To comment, please log in.";
+        try { commentGate.style.color = 'var(--danger)'; } catch (e) {}
+      }
     if (commentBtn) commentBtn.disabled = true;
     if (commentText) commentText.disabled = true;
 
@@ -633,7 +636,10 @@ async function wireCommentForm(post) {
   }
 
   // Logged in: enable comment form + show anon toggle UI
-  if (commentGate) commentGate.textContent = "You are logged in.";
+    if (commentGate) {
+      commentGate.textContent = "You are logged in.";
+      try { commentGate.style.color = ''; } catch (e) {}
+    }
   if (commentBtn) commentBtn.disabled = false;
   if (commentText) commentText.disabled = false;
 
