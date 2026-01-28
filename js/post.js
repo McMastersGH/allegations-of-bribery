@@ -32,6 +32,93 @@ function escapeHtml(s) {
     .replaceAll("'", "&#039;");
 }
 
+// Lightweight modal viewer for images and PDFs
+let __fileModal = null;
+function showFileModal(url, mime, opener) {
+  try {
+    // If already open, replace content
+    if (!__fileModal) {
+      const overlay = document.createElement('div');
+      overlay.className = 'file-modal-overlay';
+      overlay.tabIndex = -1;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'file-modal';
+
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'btn file-modal-close';
+      closeBtn.textContent = 'Close';
+      closeBtn.type = 'button';
+      closeBtn.onclick = () => closeFileModal();
+
+      const content = document.createElement('div');
+      content.className = 'file-modal-content';
+
+      wrap.appendChild(closeBtn);
+      wrap.appendChild(content);
+      overlay.appendChild(wrap);
+
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeFileModal();
+      });
+
+      document.addEventListener('keydown', __onFileModalKeydown);
+
+      __fileModal = { overlay, wrap, content, closeBtn, opener };
+      document.body.appendChild(overlay);
+    }
+
+    // Populate content based on mime
+    const { content, closeBtn } = __fileModal;
+    content.innerHTML = '';
+    if (mime && mime.startsWith('image/')) {
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = opener?.textContent || '';
+      img.className = 'file-modal-image';
+      content.appendChild(img);
+    } else if (mime === 'application/pdf') {
+      const iframe = document.createElement('iframe');
+      iframe.src = url;
+      iframe.className = 'file-modal-iframe';
+      iframe.setAttribute('aria-label', 'PDF preview');
+      content.appendChild(iframe);
+    } else {
+      const link = document.createElement('a');
+      link.href = url;
+      link.textContent = 'Open file';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      content.appendChild(link);
+    }
+
+    // Show overlay and focus close button
+    __fileModal.overlay.style.display = 'flex';
+    closeBtn.focus();
+  } catch (e) {
+    // Swallow errors; fallback is default navigation
+    console.error('showFileModal error', e);
+  }
+}
+
+function __onFileModalKeydown(e) {
+  if (!__fileModal) return;
+  if (e.key === 'Escape') closeFileModal();
+}
+
+function closeFileModal() {
+  if (!__fileModal) return;
+  try {
+    const opener = __fileModal.opener;
+    __fileModal.overlay.remove();
+    document.removeEventListener('keydown', __onFileModalKeydown);
+    __fileModal = null;
+    if (opener && typeof opener.focus === 'function') opener.focus();
+  } catch (e) {
+    __fileModal = null;
+  }
+}
+
 function fmtDate(iso, tzOverride) {
   try {
     // Normalize common timestamp formats so Date parsing is consistent:
@@ -215,7 +302,10 @@ async function renderFiles(postId) {
       img.style.display = "block";
       img.style.marginTop = "6px";
       img.style.cursor = "pointer";
-      img.onclick = () => window.open(url, "_blank");
+      img.onclick = (e) => {
+        e.preventDefault();
+        showFileModal(url, mime, e.currentTarget);
+      };
       previewWrap.appendChild(makeToggle(img, "Hide preview", "Show preview"));
       previewWrap.appendChild(img);
     }
@@ -290,6 +380,14 @@ async function renderFiles(postId) {
       const anchor = el.querySelector('a');
       if (anchor) {
         anchor.addEventListener('click', (ev) => {
+          // If image/pdf, open modal instead of navigating
+          if (mime.startsWith('image/') || mime === 'application/pdf') {
+            ev.preventDefault();
+            showFileModal(url, mime, ev.currentTarget);
+            return;
+          }
+
+          // Otherwise, if an inline preview exists, toggle it
           const hasPreview = previewWrap && previewWrap.children && previewWrap.children.length > 0;
           if (hasPreview) {
             ev.preventDefault();
