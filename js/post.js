@@ -283,6 +283,13 @@ async function renderFiles(postId) {
       btn.style.marginTop = "6px";
       btn.onclick = () => {
         if (targetEl.style.display === "none") {
+          // If this element has a lazy loader, run it once before showing
+          try {
+            if (!targetEl.__lazyLoaded && typeof targetEl.__lazyLoad === 'function') {
+              targetEl.__lazyLoad();
+              targetEl.__lazyLoaded = true;
+            }
+          } catch (e) {}
           targetEl.style.display = "block";
           btn.textContent = showText;
         } else {
@@ -296,7 +303,8 @@ async function renderFiles(postId) {
     // Image preview (inline thumbnail) — shown by default, can hide
     if (mime.startsWith("image/")) {
       const img = document.createElement("img");
-      img.src = url;
+      // Defer loading until preview shown to avoid mobile auto-downloads
+      img.dataset.src = url;
       img.alt = f.original_name || "image";
       img.style.maxHeight = "160px";
       img.style.display = "block";
@@ -306,6 +314,8 @@ async function renderFiles(postId) {
         e.preventDefault();
         showFileModal(url, mime, e.currentTarget);
       };
+      // lazy loader
+      img.__lazyLoad = () => { img.src = img.dataset.src; };
       previewWrap.appendChild(makeToggle(img, "Hide preview", "Show preview"));
       previewWrap.appendChild(img);
     }
@@ -313,10 +323,12 @@ async function renderFiles(postId) {
     // PDF preview: embed iframe by default with hide/show toggle
     else if (mime === "application/pdf") {
       const iframe = document.createElement("iframe");
-      iframe.src = url;
+      // Defer loading until preview shown
+      iframe.dataset.src = url;
       iframe.style.width = "100%";
       iframe.style.height = "480px";
       iframe.style.marginTop = "8px";
+      iframe.__lazyLoad = () => { iframe.src = iframe.dataset.src; };
       previewWrap.appendChild(makeToggle(iframe, "Hide preview", "Show preview"));
       previewWrap.appendChild(iframe);
     }
@@ -329,10 +341,10 @@ async function renderFiles(postId) {
       pre.style.maxHeight = "220px";
       pre.style.overflow = "auto";
       pre.style.marginTop = "6px";
-      pre.textContent = "Loading preview...";
-
-      // Attempt to fetch text content (best-effort; may fail due to CORS)
-      (async () => {
+      pre.textContent = "Preview not loaded.";
+      // Defer fetching text until preview shown
+      pre.__lazyLoad = async () => {
+        pre.textContent = "Loading preview...";
         try {
           const resp = await fetch(url);
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -342,7 +354,7 @@ async function renderFiles(postId) {
         } catch (e) {
           pre.textContent = `Preview unavailable: ${e?.message || String(e)}`;
         }
-      })();
+      };
 
       previewWrap.appendChild(makeToggle(pre, "Hide preview", "Show preview"));
       previewWrap.appendChild(pre);
