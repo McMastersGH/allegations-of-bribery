@@ -39,6 +39,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       try {
         const d = new Date(iso);
+        // Use SITE_TIMEZONE if present for consistent site-wide display
+        try {
+          // Import SITE_TIMEZONE lazily to avoid top-level changes here
+          const { SITE_TIMEZONE } = await import('./config.js');
+          if (SITE_TIMEZONE) {
+            const opts = { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' };
+            const inZone = new Intl.DateTimeFormat(undefined, { ...opts, timeZone: SITE_TIMEZONE }).format(d);
+            const utcIso = d.toISOString().replace('T', ' ').replace('Z', '');
+            return `${inZone} (${SITE_TIMEZONE} ${utcIso})`;
+          }
+        } catch (e) {
+          // fallthrough to local
+        }
         const local = d.toLocaleString();
         const utcIso = d.toISOString().replace('T', ' ').replace('Z', '');
         return `${local} (UTC ${utcIso})`;

@@ -4,7 +4,7 @@ import { getPublicUrl } from "./storageApi.js";
 import { getSession, wireAuthButtons, getMyAuthorStatus, setMyAnonymity } from "./auth.js";
 import { uploadAndRecordFiles } from "./uploader.js";
 import { bucketExists } from "./storageApi.js";
-import { POST_UPLOADS_BUCKET } from "./config.js";
+import { POST_UPLOADS_BUCKET, SITE_TIMEZONE } from "./config.js";
 
 let postTitle;
 let postMeta;
@@ -32,18 +32,32 @@ function escapeHtml(s) {
     .replaceAll("'", "&#039;");
 }
 
-function fmtDate(iso) {
+function fmtDate(iso, tzOverride) {
   try {
     // Normalize common timestamp formats so Date parsing is consistent:
     // - replace space between date and time with 'T'
     // - treat timezone-less timestamps as UTC by appending 'Z'
     if (typeof iso === 'string') {
       iso = iso.replace(/^([0-9]{4}-[0-9]{2}-[0-9]{2})\s+/, '$1T');
-      if (/^\d{4}-\d{2}-\d{2}T/.test(iso) && !(/[zZ]$|[+\-]\d{2}:\d{2}$/.test(iso))) {
+      // Detect trailing timezone offsets like +00, +0000, or +00:00
+      if (/^\d{4}-\d{2}-\d{2}T/.test(iso) && !(/[zZ]$|[+\-]\d{2}(:?\d{2})?$/.test(iso))) {
         iso = iso + 'Z';
       }
     }
     const d = new Date(iso);
+
+    // Prefer an explicit override, then SITE_TIMEZONE, then the browser locale
+    const tz = tzOverride || SITE_TIMEZONE || Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    try {
+      const opts = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+      const inZone = new Intl.DateTimeFormat(undefined, { ...opts, timeZone: tz }).format(d);
+      const utcIso = d.toISOString().replace('T', ' ').replace('Z', '');
+      return `${inZone} (${tz} ${utcIso})`;
+    } catch (e) {
+      // Fall back to browser-local formatting on error
+    }
+
     const local = d.toLocaleString();
     const utcIso = d.toISOString().replace('T', ' ').replace('Z', '');
     return `${local} (UTC ${utcIso})`;
@@ -603,6 +617,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (dateSpan) {
       dateSpan.textContent =
         `Published: ${fmtDate(post.created_at)}` + (post.status === "published" ? "" : " (DRAFT)");
+    }
+    
+    // Fetch author profile to format timestamps in the author's timezone when available
+    let postAuthorProfile = null;
+    try {
+      if (post?.author_id) {
+        postAuthorProfile = await (await import("./blogApi.js")).getAuthorProfile(post.author_id);
+      }
+    } catch {
+      postAuthorProfile = null;
+    }
+
+    if (authorSpan) authorSpan.textContent = post?.is_anonymous ? "Anonymous" : (post?.display_name || "Member");
+    if (dateSpan) {
+      const tz = postAuthorProfile?.timezone || null;
+      dateSpan.textContent =
+        `Published: ${fmtDate(post.created_at, tz)}` + (post.status === "published" ? "" : " (DRAFT)");
     }
 
     // body is plain text in your schema; render safely

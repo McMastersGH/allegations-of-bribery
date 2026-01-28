@@ -370,7 +370,7 @@ export async function getAuthorProfile(userId) {
   const sb = getSupabaseClient();
   const { data, error } = await sb
     .from("authors")
-    .select("user_id, display_name, approved, is_anonymous")
+    .select("user_id, display_name, approved, is_anonymous, timezone")
     .eq("user_id", userId)
     .maybeSingle();
 
