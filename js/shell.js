@@ -1,5 +1,6 @@
 // js/shell.js
 import { wireAuthButtons } from "./auth.js";
+import { ENABLE_ADS, ADS_PROVIDER, ADSENSE_CLIENT } from "./config.js";
 
 export default async function initShell() {
   // Inject header
@@ -46,6 +47,12 @@ export default async function initShell() {
         </span>
 
         <button id="logoutBtn" class="rounded-md border border-stroke px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800" type="button" style="display:none;">Logout</button>
+      </div>
+    </div>
+    <!-- Optional ad row (controlled by config.ENABLE_ADS) -->
+    <div id="headerAd" class="mx-auto hidden max-w-6xl px-4 py-2 lg:block">
+      <div class="rounded-lg border border-stroke bg-panel p-2 flex items-center justify-center">
+        <div id="ad-slot" class="w-full text-center text-slate-400 text-sm">Ad placeholder</div>
       </div>
     </div>
   </header>`;
@@ -137,6 +144,37 @@ export default async function initShell() {
     }
   } catch (e) {
     // ignore
+  }
+
+  // Show/hide ad placeholder and optionally load provider script
+  try {
+    const headerAd = document.getElementById("headerAd");
+    if (headerAd) {
+      if (ENABLE_ADS) headerAd.classList.remove("hidden");
+      else headerAd.classList.add("hidden");
+    }
+
+    if (ENABLE_ADS && ADS_PROVIDER === "adsense" && ADSENSE_CLIENT && ADSENSE_CLIENT !== "ca-pub-REPLACE_ME") {
+      const s = document.createElement("script");
+      s.async = true;
+      s.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`;
+      s.crossOrigin = "anonymous";
+      document.head.appendChild(s);
+      // Note: publisher must replace #ad-slot contents with the proper <ins class="adsbygoogle" ...> markup
+    } else {
+      // Load dev stub to reserve ad space when ads are disabled
+      try {
+        const stub = document.createElement("script");
+        stub.type = "module";
+        stub.src = "./js/adStub.js";
+        document.body.appendChild(stub);
+      } catch (e) {
+        // ignore
+      }
+    }
+  } catch (e) {
+    // fail quietly
+    console.error("ad integration failed:", e);
   }
 
   return { headerId: "siteHeader", footerId: "siteFooter" };

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sponsor — Allegations of Bribery</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+  <script>
+    // simple client-side form handler
+    async function submitSponsorForm(e) {
+      e.preventDefault();
+      const name = document.getElementById('name').value;
+      const email = document.getElementById('email').value;
+      const message = document.getElementById('message').value;
+      const btn = document.getElementById('sendBtn');
+      btn.disabled = true;
+      try {
+        const res = await fetch('/sponsor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, message })
+        });
+        if (res.ok) {
+          document.getElementById('status').textContent = 'Message sent — thank you!';
+          document.getElementById('sponsorForm').reset();
+        } else {
+          document.getElementById('status').textContent = 'Submission failed. Please email us directly.';
+        }
+      } catch (err) {
+        document.getElementById('status').textContent = 'Submission failed. Please email us directly.';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+  </script>
+</head>
+<body class="bg-page text-slate-200 antialiased">
+  <div id="siteHeader"></div>
+
+  <main class="mx-auto max-w-6xl px-4 py-6">
+    <section class="card">
+      <h1>Sponsor / Advertising Inquiries</h1>
+      <p class="small">Interested in sponsoring a section of the site or purchasing a permanent placement? Fill out the form and we'll follow up.</p>
+
+      <form id="sponsorForm" onsubmit="submitSponsorForm(event)" style="margin-top:12px;">
+        <label class="label">Name</label>
+        <input id="name" class="input" required />
+
+        <label class="label">Email</label>
+        <input id="email" type="email" class="input" required />
+
+        <label class="label">Message</label>
+        <textarea id="message" class="input" rows="6" required></textarea>
+
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center;">
+          <button id="sendBtn" class="btn" type="submit">Send</button>
+          <div id="status" class="small muted"></div>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <div id="siteFooter"></div>
+
+  <script type="module">import initShell from './js/shell.js'; await initShell();</script>
+</body>
+</html>
