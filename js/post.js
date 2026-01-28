@@ -268,6 +268,54 @@ async function renderFiles(postId) {
       <div class="muted">${escapeHtml(f.mime_type || "file")} • ${escapeHtml(fmtDate(f.created_at))}</div>
     `;
 
+      // Add explicit preview/download controls so mobile users can choose.
+      const controls = document.createElement('div');
+      controls.style.marginTop = '8px';
+
+      const previewBtn = document.createElement('button');
+      previewBtn.className = 'btn btn-sm';
+      previewBtn.textContent = 'Preview in New Tab';
+      previewBtn.onclick = (e) => {
+        e.preventDefault();
+        window.open(url, '_blank', 'noopener');
+      };
+      controls.appendChild(previewBtn);
+
+      const downloadBtn = document.createElement('button');
+      downloadBtn.className = 'btn btn-sm';
+      downloadBtn.style.marginLeft = '8px';
+      downloadBtn.textContent = 'Download';
+      downloadBtn.onclick = async (e) => {
+        e.preventDefault();
+        try {
+          downloadBtn.disabled = true;
+          const prevText = downloadBtn.textContent;
+          downloadBtn.textContent = 'Downloading…';
+
+          const resp = await fetch(url);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const blob = await resp.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = f.original_name || 'file';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(blobUrl);
+
+          downloadBtn.textContent = prevText;
+          downloadBtn.disabled = false;
+        } catch (err) {
+          downloadBtn.disabled = false;
+          downloadBtn.textContent = 'Download';
+          // fallback: open in new tab
+          window.open(url, '_blank', 'noopener');
+        }
+      };
+      controls.appendChild(downloadBtn);
+      el.appendChild(controls);
+
     // Add preview area (shown by default) with a hide/show toggle
     const previewWrap = document.createElement("div");
     previewWrap.style.marginTop = "6px";
@@ -300,53 +348,11 @@ async function renderFiles(postId) {
       return btn;
     };
 
-    // Image preview (inline thumbnail) — shown by default, can hide
-    if (mime.startsWith("image/")) {
-      // Avoid setting the image `src` inline because some mobile browsers
-      // will treat the response as a download when the server sends
-      // Content-Disposition: attachment. Show a lightweight placeholder
-      // and open the modal when the user requests the preview.
-      const placeholder = document.createElement('div');
-      placeholder.className = 'file-preview-placeholder';
-      placeholder.style.marginTop = '6px';
-      placeholder.textContent = f.original_name || 'Image preview';
-
-      const openBtn = document.createElement('button');
-      openBtn.className = 'btn btn-sm';
-      openBtn.style.marginLeft = '8px';
-      openBtn.textContent = 'Open preview';
-      openBtn.onclick = (e) => {
-        e.preventDefault();
-        showFileModal(url, mime, e.currentTarget);
-      };
-
-      placeholder.appendChild(openBtn);
-      previewWrap.appendChild(makeToggle(placeholder, "Hide preview", "Show preview"));
-      previewWrap.appendChild(placeholder);
-    }
-
-    // PDF preview: embed iframe by default with hide/show toggle
-    else if (mime === "application/pdf") {
-      // Don't embed the PDF inline; many mobile browsers will download PDFs
-      // when an iframe/src is set. Instead show a placeholder and let the
-      // user open the modal which loads the PDF in an iframe.
-      const placeholder = document.createElement('div');
-      placeholder.className = 'file-preview-placeholder';
-      placeholder.style.marginTop = '6px';
-      placeholder.textContent = f.original_name || 'PDF preview';
-
-      const openBtn = document.createElement('button');
-      openBtn.className = 'btn btn-sm';
-      openBtn.style.marginLeft = '8px';
-      openBtn.textContent = 'Open preview';
-      openBtn.onclick = (e) => {
-        e.preventDefault();
-        showFileModal(url, mime, e.currentTarget);
-      };
-
-      placeholder.appendChild(openBtn);
-      previewWrap.appendChild(makeToggle(placeholder, "Hide preview", "Show preview"));
-      previewWrap.appendChild(placeholder);
+    // Do not create inline previews for images or PDFs to avoid mobile
+    // browsers treating the resource as a download. Keep only the anchor
+    // at the top which opens the file in a new tab.
+    if (mime.startsWith("image/") || mime === "application/pdf") {
+      // no inline preview
     }
 
     // Text preview: fetch first chunk and display truncated, with toggle
@@ -402,47 +408,7 @@ async function renderFiles(postId) {
       ctrl.appendChild(delBtn);
       el.appendChild(ctrl);
     }
-    // Intercept anchor clicks so devices that would normally download
-    // a file instead toggle the inline preview (when available).
-    try {
-      const anchor = el.querySelector('a');
-      if (anchor) {
-        anchor.addEventListener('click', (ev) => {
-          try {
-            // Find the preview element (first non-button child of previewWrap)
-            const previewEl = Array.from(previewWrap.children).find(c => !c.matches || !c.matches('button'));
-            const isVisible = previewEl && window.getComputedStyle(previewEl).display !== 'none';
-
-            // For images and PDFs: only open modal if the inline preview is currently visible.
-            if ((mime.startsWith('image/') || mime === 'application/pdf')) {
-              if (isVisible) {
-                ev.preventDefault();
-                showFileModal(url, mime, ev.currentTarget);
-              } else if (previewEl) {
-                // Reveal the preview instead of navigating
-                ev.preventDefault();
-                const toggle = previewWrap.querySelector('button.btn');
-                if (toggle) toggle.click();
-              }
-              return;
-            }
-
-            // For other types: if an inline preview exists, toggle it
-            if (previewEl) {
-              ev.preventDefault();
-              const toggle = previewWrap.querySelector('button.btn');
-              if (toggle) toggle.click();
-              else previewWrap.style.display = (previewWrap.style.display === 'none') ? 'block' : 'none';
-            }
-            // If no preview available, let the default navigation/download happen.
-          } catch (e) {
-            // On error, fall back to default link behavior
-          }
-        });
-      }
-    } catch (e) {
-      // Non-fatal: if DOM queries fail, let links behave normally.
-    }
+    // Let anchor links behave normally (open in a new tab via target="_blank").
 
     el.appendChild(previewWrap);
     attachments.appendChild(el);
