@@ -284,6 +284,25 @@ async function renderFiles(postId) {
       ctrl.appendChild(delBtn);
       el.appendChild(ctrl);
     }
+    // Intercept anchor clicks so devices that would normally download
+    // a file instead toggle the inline preview (when available).
+    try {
+      const anchor = el.querySelector('a');
+      if (anchor) {
+        anchor.addEventListener('click', (ev) => {
+          const hasPreview = previewWrap && previewWrap.children && previewWrap.children.length > 0;
+          if (hasPreview) {
+            ev.preventDefault();
+            const toggle = previewWrap.querySelector('button.btn');
+            if (toggle) toggle.click();
+            else previewWrap.style.display = (previewWrap.style.display === 'none') ? 'block' : 'none';
+          }
+          // If no preview available, let the default navigation/download happen.
+        });
+      }
+    } catch (e) {
+      // Non-fatal: if DOM queries fail, let links behave normally.
+    }
 
     el.appendChild(previewWrap);
     attachments.appendChild(el);
