@@ -23,6 +23,13 @@ let commentAnonToggle;
 let commentAnonStatus;
 let editingPost = false;
 
+// Detect mobile devices (simple UA sniff for pragmatic behavior)
+const __isMobileDevice = (() => {
+  try {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
+  } catch (e) { return false; }
+})();
+
 function escapeHtml(s) {
   return String(s ?? "")
     .replaceAll("&", "&amp;")
@@ -272,14 +279,16 @@ async function renderFiles(postId) {
       const controls = document.createElement('div');
       controls.style.marginTop = '8px';
 
-      const previewBtn = document.createElement('button');
-      previewBtn.className = 'btn btn-sm';
-      previewBtn.textContent = 'Preview in New Tab';
-      previewBtn.onclick = (e) => {
-        e.preventDefault();
-        window.open(url, '_blank', 'noopener');
-      };
-      controls.appendChild(previewBtn);
+      if (!__isMobileDevice) {
+        const previewBtn = document.createElement('button');
+        previewBtn.className = 'btn btn-sm';
+        previewBtn.textContent = 'Preview in New Tab';
+        previewBtn.onclick = (e) => {
+          e.preventDefault();
+          window.open(url, '_blank', 'noopener');
+        };
+        controls.appendChild(previewBtn);
+      }
 
       const downloadBtn = document.createElement('button');
       downloadBtn.className = 'btn btn-sm';
