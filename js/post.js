@@ -212,7 +212,12 @@ function fmtDate(iso, tzOverride) {
 
 function getId() {
   const u = new URL(window.location.href);
-  return u.searchParams.get("id");
+  const raw = u.searchParams.get("id") || "";
+  // If the value contains a UUID (copied from text and may have trailing punctuation), return that.
+  const m = raw.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+  if (m) return m[0];
+  // Fallback: trim whitespace and trailing punctuation like '.', ',', ';', ':'
+  return raw.trim().replace(/[.,;:]+$/g, "");
 }
 
 async function renderFiles(postId) {

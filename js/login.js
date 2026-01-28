@@ -18,7 +18,30 @@ function getNextUrl() {
   if (next.startsWith("/")) return next;
 
   // Allow simple relative: post.html?id=...  or ./post.html?id=...
-  return next.startsWith("./") || next.startsWith("../") ? next : `./${next}`;
+  const candidate = next.startsWith("./") || next.startsWith("../") ? next : `./${next}`;
+
+  // If the `next` points to a post with an `id` query param, sanitize that id
+  // to cope with copied trailing punctuation (e.g., "...id=UUID.").
+  try {
+    // Quick check to avoid unnecessary work
+    if (candidate.includes('post.html') && candidate.includes('id=')) {
+      // Find the id value and clean it: prefer UUID match, else trim trailing punctuation
+      const idMatch = candidate.match(/[?&]id=([^&\s#]+)/);
+      if (idMatch) {
+        const rawId = decodeURIComponent(idMatch[1]);
+        const uuidMatch = rawId.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+        const cleaned = uuidMatch ? uuidMatch[0] : rawId.trim().replace(/[.,;:]+$/g, '');
+        if (cleaned !== rawId) {
+          const encoded = encodeURIComponent(cleaned);
+          return candidate.replace(idMatch[0], idMatch[0].replace(encodeURIComponent(idMatch[1]), encoded));
+        }
+      }
+    }
+  } catch (e) {
+    // Fall back to returning the original candidate
+  }
+
+  return candidate;
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
