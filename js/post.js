@@ -302,35 +302,51 @@ async function renderFiles(postId) {
 
     // Image preview (inline thumbnail) — shown by default, can hide
     if (mime.startsWith("image/")) {
-      const img = document.createElement("img");
-      // Defer loading until preview shown to avoid mobile auto-downloads
-      img.dataset.src = url;
-      img.alt = f.original_name || "image";
-      img.style.maxHeight = "160px";
-      img.style.display = "block";
-      img.style.marginTop = "6px";
-      img.style.cursor = "pointer";
-      img.onclick = (e) => {
+      // Avoid setting the image `src` inline because some mobile browsers
+      // will treat the response as a download when the server sends
+      // Content-Disposition: attachment. Show a lightweight placeholder
+      // and open the modal when the user requests the preview.
+      const placeholder = document.createElement('div');
+      placeholder.className = 'file-preview-placeholder';
+      placeholder.style.marginTop = '6px';
+      placeholder.textContent = f.original_name || 'Image preview';
+
+      const openBtn = document.createElement('button');
+      openBtn.className = 'btn btn-sm';
+      openBtn.style.marginLeft = '8px';
+      openBtn.textContent = 'Open preview';
+      openBtn.onclick = (e) => {
         e.preventDefault();
         showFileModal(url, mime, e.currentTarget);
       };
-      // lazy loader
-      img.__lazyLoad = () => { img.src = img.dataset.src; };
-      previewWrap.appendChild(makeToggle(img, "Hide preview", "Show preview"));
-      previewWrap.appendChild(img);
+
+      placeholder.appendChild(openBtn);
+      previewWrap.appendChild(makeToggle(placeholder, "Hide preview", "Show preview"));
+      previewWrap.appendChild(placeholder);
     }
 
     // PDF preview: embed iframe by default with hide/show toggle
     else if (mime === "application/pdf") {
-      const iframe = document.createElement("iframe");
-      // Defer loading until preview shown
-      iframe.dataset.src = url;
-      iframe.style.width = "100%";
-      iframe.style.height = "480px";
-      iframe.style.marginTop = "8px";
-      iframe.__lazyLoad = () => { iframe.src = iframe.dataset.src; };
-      previewWrap.appendChild(makeToggle(iframe, "Hide preview", "Show preview"));
-      previewWrap.appendChild(iframe);
+      // Don't embed the PDF inline; many mobile browsers will download PDFs
+      // when an iframe/src is set. Instead show a placeholder and let the
+      // user open the modal which loads the PDF in an iframe.
+      const placeholder = document.createElement('div');
+      placeholder.className = 'file-preview-placeholder';
+      placeholder.style.marginTop = '6px';
+      placeholder.textContent = f.original_name || 'PDF preview';
+
+      const openBtn = document.createElement('button');
+      openBtn.className = 'btn btn-sm';
+      openBtn.style.marginLeft = '8px';
+      openBtn.textContent = 'Open preview';
+      openBtn.onclick = (e) => {
+        e.preventDefault();
+        showFileModal(url, mime, e.currentTarget);
+      };
+
+      placeholder.appendChild(openBtn);
+      previewWrap.appendChild(makeToggle(placeholder, "Hide preview", "Show preview"));
+      previewWrap.appendChild(placeholder);
     }
 
     // Text preview: fetch first chunk and display truncated, with toggle
