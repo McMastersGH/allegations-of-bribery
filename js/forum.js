@@ -9,9 +9,9 @@ function forumMeta(slug) {
       title: "General Topics",
       desc: "Threads in general-topics",
     },
-    introductions: {
-      title: "Introductions",
-      desc: "Introduce yourself and what you are researching.",
+    "union-matters": {
+      title: "Union Matters",
+      desc: "Discuss union organizing, labor disputes, contracts, and member issues.",
     },
     "questions-and-answers": {
       title: "Questions & Answers",

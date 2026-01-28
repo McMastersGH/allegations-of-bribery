@@ -12,7 +12,7 @@ export async function populateForumCounts() {
 
   const slugs = [
     "general-topics",
-    "introductions",
+    "union-matters",
     "questions-and-answers",
     "off-topic",
     "judicial-misconduct",

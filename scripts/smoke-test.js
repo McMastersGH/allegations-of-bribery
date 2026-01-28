@@ -10,7 +10,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_Py3GBxpFjqUm-RMYdOiTXA_1-PAFtRX";
 
 const slugs = [
 	"general-topics",
-	"introductions",
+	"union-matters",
 	"questions-and-answers",
 	"off-topic",
 	"judicial-misconduct",

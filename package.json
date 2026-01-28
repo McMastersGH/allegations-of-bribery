@@ -7,7 +7,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint js --ext .js",
-    "lint:fix": "eslint js --ext .js --fix"
+    "lint:fix": "eslint js --ext .js --fix",
+    "spellcheck": "cspell \"**/*.{html,js,md,txt}\""
   },
   "keywords": [],
   "author": "",
@@ -17,6 +18,7 @@
     ,"@supabase/supabase-js": "^2.91.0"
   },
   "devDependencies": {
-    "eslint": "^8.50.0"
+    "eslint": "^8.50.0",
+    "cspell": "^6.18.0"
   }
 }

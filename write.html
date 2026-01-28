@@ -62,12 +62,12 @@
 
       <div class="mt-4">
         <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">Title</label>
-        <input id="title" class="mt-2 w-full rounded-md border border-stroke bg-panel px-3 py-2 text-sm text-slate-200" placeholder="Thread title" />
+        <input id="title" spellcheck="true" class="mt-2 w-full rounded-md border border-stroke bg-panel px-3 py-2 text-sm text-slate-200" placeholder="Thread title" />
       </div>
 
       <div class="mt-4">
         <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">Body</label>
-        <textarea id="content" class="mt-2 w-full rounded-md border border-stroke bg-panel px-3 py-2 text-sm text-slate-200" rows="10" placeholder="Write your post..."></textarea>
+        <textarea id="content" spellcheck="true" class="mt-2 w-full rounded-md border border-stroke bg-panel px-3 py-2 text-sm text-slate-200" rows="10" placeholder="Write your post..."></textarea>
         <p class="mt-2 text-xs text-slate-500">Tip: keep it factual; add sources where possible.</p>
       </div>
 
@@ -84,6 +84,7 @@
         <button id="saveDraftBtn" class="rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800" type="button">
           Save Draft
         </button>
+        <button id="checkDocBtn" class="rounded-md border border-stroke px-3 py-2 text-sm text-slate-200" type="button">Check spelling</button>
       </div>
 
       <p class="mt-4 text-xs text-slate-500">
@@ -102,6 +103,12 @@
   <script type="module">
     import initShell from "./js/shell.js";
     await initShell();
+  </script>
+
+  <script type="module">
+    import { wireSpellcheck } from "./js/spellcheck.js";
+    // wire spellcheck for compose fields
+    wireSpellcheck({ textareaId: 'content', buttonId: 'checkDocBtn' });
   </script>
 
   <script type="module" src="./js/write.js"></script>

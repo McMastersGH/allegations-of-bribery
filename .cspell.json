@@ -1,0 +1,15 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "ignorePaths": [
+    "node_modules/**",
+    "dist/**",
+    "migrations/**"
+  ],
+  "words": [
+    "Supabase",
+    "pdfjs",
+    "ucGate",
+    "XDA"
+  ]
+}
