@@ -380,22 +380,36 @@ async function renderFiles(postId) {
       const anchor = el.querySelector('a');
       if (anchor) {
         anchor.addEventListener('click', (ev) => {
-          // If image/pdf, open modal instead of navigating
-          if (mime.startsWith('image/') || mime === 'application/pdf') {
-            ev.preventDefault();
-            showFileModal(url, mime, ev.currentTarget);
-            return;
-          }
+          try {
+            // Find the preview element (first non-button child of previewWrap)
+            const previewEl = Array.from(previewWrap.children).find(c => !c.matches || !c.matches('button'));
+            const isVisible = previewEl && window.getComputedStyle(previewEl).display !== 'none';
 
-          // Otherwise, if an inline preview exists, toggle it
-          const hasPreview = previewWrap && previewWrap.children && previewWrap.children.length > 0;
-          if (hasPreview) {
-            ev.preventDefault();
-            const toggle = previewWrap.querySelector('button.btn');
-            if (toggle) toggle.click();
-            else previewWrap.style.display = (previewWrap.style.display === 'none') ? 'block' : 'none';
+            // For images and PDFs: only open modal if the inline preview is currently visible.
+            if ((mime.startsWith('image/') || mime === 'application/pdf')) {
+              if (isVisible) {
+                ev.preventDefault();
+                showFileModal(url, mime, ev.currentTarget);
+              } else if (previewEl) {
+                // Reveal the preview instead of navigating
+                ev.preventDefault();
+                const toggle = previewWrap.querySelector('button.btn');
+                if (toggle) toggle.click();
+              }
+              return;
+            }
+
+            // For other types: if an inline preview exists, toggle it
+            if (previewEl) {
+              ev.preventDefault();
+              const toggle = previewWrap.querySelector('button.btn');
+              if (toggle) toggle.click();
+              else previewWrap.style.display = (previewWrap.style.display === 'none') ? 'block' : 'none';
+            }
+            // If no preview available, let the default navigation/download happen.
+          } catch (e) {
+            // On error, fall back to default link behavior
           }
-          // If no preview available, let the default navigation/download happen.
         });
       }
     } catch (e) {
