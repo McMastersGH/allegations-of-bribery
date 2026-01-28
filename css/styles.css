@@ -278,3 +278,24 @@ body::before {
   0% { background-position: -200px 0; }
   100% { background-position: 200px 0; }
 }
+
+/* ===== Mobile-friendly fixes ===== */
+img, video, iframe { max-width: 100%; height: auto; display: block; }
+
+/* Reduce heavy background / image footprint on small screens */
+@media (max-width: 640px) {
+  body {
+    /* remove large decorative background on small devices to improve readability and save bandwidth */
+    background-image: none;
+    background-size: auto;
+    background-position: center top;
+  }
+
+  .container { padding-left: 12px; padding-right: 12px; }
+
+  /* Slightly tighter cards and overlays on small screens */
+  .uc-gate-card, .uc-card { padding: 1rem; }
+
+  /* Ensure header elements scale comfortably */
+  .brand .title { font-size: 1rem; }
+}

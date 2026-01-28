@@ -11,11 +11,26 @@ export default async function initShell() {
         <div class="text-lg font-semibold tracking-tight">Allegations of Bribery</div>
       </div>
 
+      <!-- Mobile menu button -->
+      <button id="mobileMenuBtn" class="md:hidden inline-flex items-center justify-center p-2 rounded-md border border-stroke text-slate-300" aria-expanded="false" aria-label="Menu" type="button">
+        <svg id="mobileMenuIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path fill-rule="evenodd" d="M3 5h14a1 1 0 010 2H3a1 1 0 110-2zm0 4h14a1 1 0 010 2H3a1 1 0 110-2zm0 4h14a1 1 0 010 2H3a1 1 0 110-2z" clip-rule="evenodd" />
+        </svg>
+      </button>
+
       <nav class="hidden items-center gap-5 text-sm text-slate-300 md:flex">
         <a class="hover:text-white" href="./index.html">Forums</a>
         <a class="hover:text-white" href="#">Documents</a>
         <a class="hover:text-white" href="#">Cases</a>
       </nav>
+      <!-- Mobile nav (collapsed by default) -->
+      <div id="mobileNav" class="md:hidden hidden absolute left-0 right-0 top-full z-50 border-b border-stroke bg-panel/95">
+        <div class="mx-auto max-w-6xl px-4 py-3 flex flex-col gap-2">
+          <a class="px-2 py-2 rounded hover:bg-slate-800" href="./index.html">Forums</a>
+          <a class="px-2 py-2 rounded hover:bg-slate-800" href="#">Documents</a>
+          <a class="px-2 py-2 rounded hover:bg-slate-800" href="#">Cases</a>
+        </div>
+      </div>
 
       <div class="flex items-center gap-3">
         <a id="headerBack" class="rounded-md border border-stroke px-3 py-2 text-sm text-slate-200 hover:bg-slate-800" href="./index.html" style="display:none;">← Back</a>
@@ -102,6 +117,26 @@ export default async function initShell() {
       if (window.history.length > 1) window.history.back();
       else window.location.href = "./index.html";
     });
+  }
+
+  // Mobile menu toggle (small screens)
+  try {
+    const mobileBtn = document.getElementById("mobileMenuBtn");
+    const mobileNav = document.getElementById("mobileNav");
+    const mobileIcon = document.getElementById("mobileMenuIcon");
+    const hamburgerPath = '<path fill-rule="evenodd" d="M3 5h14a1 1 0 010 2H3a1 1 0 110-2zm0 4h14a1 1 0 010 2H3a1 1 0 110-2zm0 4h14a1 1 0 010 2H3a1 1 0 110-2z" clip-rule="evenodd" />';
+    const closePath = '<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 011.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />';
+
+    if (mobileBtn && mobileNav) {
+      mobileBtn.addEventListener("click", () => {
+        const expanded = mobileBtn.getAttribute("aria-expanded") === "true";
+        mobileBtn.setAttribute("aria-expanded", String(!expanded));
+        mobileNav.classList.toggle("hidden");
+        if (mobileIcon) mobileIcon.innerHTML = expanded ? hamburgerPath : closePath;
+      });
+    }
+  } catch (e) {
+    // ignore
   }
 
   return { headerId: "siteHeader", footerId: "siteFooter" };
