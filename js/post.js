@@ -1,7 +1,10 @@
 // js/post.js
-import { getPostById, listComments, addComment, listPostFiles, updateComment, deleteComment, updatePost, deletePost } from "./blogApi.js";
+import { getPostById, listComments, addComment, listPostFiles, updateComment, deleteComment, updatePost, deletePost, deletePostFile } from "./blogApi.js";
 import { getPublicUrl } from "./storageApi.js";
 import { getSession, wireAuthButtons, getMyAuthorStatus, setMyAnonymity } from "./auth.js";
+import { uploadAndRecordFiles } from "./uploader.js";
+import { bucketExists } from "./storageApi.js";
+import { POST_UPLOADS_BUCKET } from "./config.js";
 
 let postTitle;
 let postMeta;
@@ -18,6 +21,7 @@ let commentMsg;
 let commentAnonPanel;
 let commentAnonToggle;
 let commentAnonStatus;
+let editingPost = false;
 
 function escapeHtml(s) {
   return String(s ?? "")
@@ -46,8 +50,99 @@ async function renderFiles(postId) {
   attachments.innerHTML = "";
   const files = await listPostFiles(postId);
 
+  // Determine whether current user is the post author so we can show upload controls
+  const session = await getSession();
+  const currentUserId = session?.user?.id || null;
+  let isPostAuthor = false;
+  try {
+    const post = await getPostById(postId);
+    isPostAuthor = !!currentUserId && currentUserId === post.author_id;
+  } catch {
+    // ignore - conservative default is false
+  }
+
+  // Helper to create upload UI (shown when there are no files, or for authors)
+  const makeUploadUi = () => {
+    const wrapper = document.createElement("div");
+    wrapper.style.marginTop = "8px";
+
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.multiple = true;
+    fileInput.className = "input";
+    fileInput.style.display = "block";
+
+    const uploadBtn = document.createElement("button");
+    uploadBtn.className = "btn btn-sm";
+    uploadBtn.textContent = "Upload attachments";
+    uploadBtn.style.marginTop = "6px";
+
+    const status = document.createElement("div");
+    status.className = "muted";
+    status.style.marginTop = "6px";
+    // Preflight: check auth and whether the target bucket exists and is accessible
+    (async () => {
+      try {
+        // Disable uploads if user not signed in
+        if (!currentUserId) {
+          status.innerHTML = `Please <a href="login.html">sign in</a> to upload attachments.`;
+          fileInput.disabled = true;
+          uploadBtn.disabled = true;
+          return;
+        }
+
+        const ok = await bucketExists(POST_UPLOADS_BUCKET);
+        if (!ok) {
+          status.innerHTML = `Storage bucket "${POST_UPLOADS_BUCKET}" not found. Create it in <a href="https://app.supabase.com" target="_blank" rel="noopener">Supabase Storage</a> or change the bucket name in the client configuration.`;
+          fileInput.disabled = true;
+          uploadBtn.disabled = true;
+        }
+      } catch (e) {
+        status.textContent = `Could not check storage: ${e?.message || String(e)}`;
+        fileInput.disabled = true;
+        uploadBtn.disabled = true;
+      }
+    })();
+
+    uploadBtn.onclick = async () => {
+      try {
+        if (!fileInput.files || !fileInput.files.length) {
+          status.textContent = "No files selected.";
+          return;
+        }
+        uploadBtn.disabled = true;
+        status.textContent = "Uploading...";
+
+        const authorId = currentUserId;
+        if (!authorId) throw new Error("Not authenticated.");
+
+        await uploadAndRecordFiles({ postId, authorId, files: Array.from(fileInput.files) });
+
+        status.textContent = "Upload complete.";
+        // Re-render files to show newly added attachments
+        await renderFiles(postId);
+      } catch (e) {
+        status.textContent = `Upload failed: ${e?.message || String(e)}`;
+        uploadBtn.disabled = false;
+      }
+    };
+
+    wrapper.appendChild(fileInput);
+    wrapper.appendChild(uploadBtn);
+    wrapper.appendChild(status);
+    return wrapper;
+  };
+
   if (!files.length) {
-    attachments.innerHTML = `<div class="muted">No attachments.</div>`;
+    const none = document.createElement("div");
+    none.className = "muted";
+    none.textContent = "No attachments.";
+    attachments.appendChild(none);
+
+    // If post author, show upload UI in-place where the "No attachments." message is
+    if (isPostAuthor) {
+      attachments.appendChild(makeUploadUi());
+    }
     return;
   }
 
@@ -59,8 +154,115 @@ async function renderFiles(postId) {
       <div><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(f.original_name)}</a></div>
       <div class="muted">${escapeHtml(f.mime_type || "file")} • ${escapeHtml(fmtDate(f.created_at))}</div>
     `;
+
+    // Add preview area (shown by default) with a hide/show toggle
+    const previewWrap = document.createElement("div");
+    previewWrap.style.marginTop = "6px";
+
+    const mime = (f.mime_type || "").toLowerCase();
+
+    const makeToggle = (targetEl, showText = "Hide preview", hideText = "Show preview") => {
+      const btn = document.createElement("button");
+      btn.className = "btn btn-sm";
+      btn.textContent = showText;
+      btn.style.marginTop = "6px";
+      btn.onclick = () => {
+        if (targetEl.style.display === "none") {
+          targetEl.style.display = "block";
+          btn.textContent = showText;
+        } else {
+          targetEl.style.display = "none";
+          btn.textContent = hideText;
+        }
+      };
+      return btn;
+    };
+
+    // Image preview (inline thumbnail) — shown by default, can hide
+    if (mime.startsWith("image/")) {
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = f.original_name || "image";
+      img.style.maxHeight = "160px";
+      img.style.display = "block";
+      img.style.marginTop = "6px";
+      img.style.cursor = "pointer";
+      img.onclick = () => window.open(url, "_blank");
+      previewWrap.appendChild(makeToggle(img, "Hide preview", "Show preview"));
+      previewWrap.appendChild(img);
+    }
+
+    // PDF preview: embed iframe by default with hide/show toggle
+    else if (mime === "application/pdf") {
+      const iframe = document.createElement("iframe");
+      iframe.src = url;
+      iframe.style.width = "100%";
+      iframe.style.height = "480px";
+      iframe.style.marginTop = "8px";
+      previewWrap.appendChild(makeToggle(iframe, "Hide preview", "Show preview"));
+      previewWrap.appendChild(iframe);
+    }
+
+    // Text preview: fetch first chunk and display truncated, with toggle
+    else if (mime.startsWith("text/") || mime === "application/json") {
+      const pre = document.createElement("pre");
+      pre.className = "prose";
+      pre.style.whiteSpace = "pre-wrap";
+      pre.style.maxHeight = "220px";
+      pre.style.overflow = "auto";
+      pre.style.marginTop = "6px";
+      pre.textContent = "Loading preview...";
+
+      // Attempt to fetch text content (best-effort; may fail due to CORS)
+      (async () => {
+        try {
+          const resp = await fetch(url);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const text = await resp.text();
+          const max = 2000;
+          pre.textContent = text.length > max ? text.slice(0, max) + "\n\n... (truncated)" : text;
+        } catch (e) {
+          pre.textContent = `Preview unavailable: ${e?.message || String(e)}`;
+        }
+      })();
+
+      previewWrap.appendChild(makeToggle(pre, "Hide preview", "Show preview"));
+      previewWrap.appendChild(pre);
+    }
+
+    // Fallback: no preview available
+    else {
+      // nothing extra for unknown types
+    }
+
+    // If author is editing the post, show delete control per attachment
+    if (isPostAuthor && editingPost) {
+      const ctrl = document.createElement('div');
+      ctrl.style.marginTop = '6px';
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-sm btn-danger';
+      delBtn.textContent = 'Delete attachment';
+      delBtn.onclick = async () => {
+        if (!confirm('Delete this attachment? This will remove the file and its record.')) return;
+        try {
+          delBtn.disabled = true;
+          await deletePostFile(f.id);
+          await renderFiles(postId);
+        } catch (e) {
+          delBtn.disabled = false;
+          alert(`Delete failed: ${e?.message || String(e)}`);
+        }
+      };
+      ctrl.appendChild(delBtn);
+      el.appendChild(ctrl);
+    }
+
+    el.appendChild(previewWrap);
     attachments.appendChild(el);
   }
+
+  // If author, allow adding more attachments below the list
+  if (isPostAuthor) attachments.appendChild(makeUploadUi());
 }
 
 async function renderComments(post) {
@@ -337,7 +539,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         postControls.appendChild(editPostBtn);
         postControls.appendChild(deletePostBtn);
 
-        editPostBtn.onclick = () => {
+        editPostBtn.onclick = async () => {
           const bodyEl = document.getElementById("postBody");
           if (!bodyEl) return;
           const textarea = document.createElement("textarea");
@@ -354,18 +556,48 @@ document.addEventListener("DOMContentLoaded", async () => {
           saveBtn.textContent = "Save";
           saveBtn.style.marginRight = "8px";
 
+          // File input for adding attachments while editing
+          const fileInput = document.createElement("input");
+          fileInput.type = "file";
+          fileInput.multiple = true;
+          fileInput.style.display = "block";
+          fileInput.style.marginTop = "8px";
+          fileInput.className = "input";
+
           const cancelBtn = document.createElement("button");
           cancelBtn.className = "btn btn-sm";
           cancelBtn.textContent = "Cancel";
 
           postControls.parentElement.appendChild(saveBtn);
           postControls.parentElement.appendChild(cancelBtn);
+          postControls.parentElement.appendChild(fileInput);
+
+          // Mark we're in edit mode so per-attachment delete controls appear
+          editingPost = true;
+          // Re-render attachments so delete buttons show while editing
+          try { await renderFiles(post.id); } catch (e) { /* ignore render failures */ }
 
           saveBtn.onclick = async () => {
             try {
               saveBtn.disabled = true;
               await updatePost(post.id, { body: textarea.value || "" });
-              // reload page to refresh content and metadata
+
+              // If files were selected, upload them and record DB entries
+              try {
+                if (fileInput.files && fileInput.files.length) {
+                  const session = await getSession();
+                  const authorId = session?.user?.id;
+                  if (!authorId) throw new Error("Missing session for file upload.");
+                  await uploadAndRecordFiles({ postId: post.id, authorId, files: Array.from(fileInput.files) });
+                }
+              } catch (fupe) {
+                // If upload fails, re-enable and surface error
+                saveBtn.disabled = false;
+                alert(`File upload failed: ${fupe?.message || String(fupe)}`);
+                return;
+              }
+
+              // reload page to refresh content, attachments and metadata
               window.location.reload();
             } catch (e) {
               saveBtn.disabled = false;

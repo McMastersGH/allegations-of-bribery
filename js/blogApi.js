@@ -314,6 +314,44 @@ export async function listPostFiles(postId) {
   return data || [];
 }
 
+/**
+ * Delete a post file record and its storage object.
+ * @param {string} fileId
+ */
+export async function deletePostFile(fileId) {
+  const sb = getSupabaseClient();
+  if (!fileId) throw new Error("deletePostFile: fileId is required");
+
+  // Lookup the DB row first
+  const { data: row, error: rowErr } = await sb
+    .from('post_files')
+    .select('id, bucket, object_path')
+    .eq('id', fileId)
+    .maybeSingle();
+  if (rowErr) throw rowErr;
+  if (!row) throw new Error('post file not found');
+
+  // Attempt to remove the storage object (best-effort)
+  try {
+    const { error: remErr } = await sb.storage.from(row.bucket).remove([row.object_path]);
+    if (remErr) throw remErr;
+  } catch (e) {
+    // If storage delete fails, surface the error
+    throw e;
+  }
+
+  // Delete DB record
+  const { data, error } = await sb
+    .from('post_files')
+    .delete()
+    .eq('id', fileId)
+    .select('id')
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 // ---------------------------------------------------------------------------
 // Compatibility helpers for write.js (author gating + thread creation)
 // ---------------------------------------------------------------------------

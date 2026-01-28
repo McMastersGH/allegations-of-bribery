@@ -4,7 +4,7 @@
 
 INSERT INTO forums (slug, title, description) VALUES
   ('general-topics', 'General Topics', 'Open discussion of allegations, investigations, and site updates.'),
-  ('introductions', 'Introductions', 'Introduce yourself and describe what you are researching.'),
+  ('union-matters', 'Union Matters', 'Discuss union organizing, labor disputes, contracts, and member issues.'),
   ('questions-and-answers', 'Questions & Answers', 'Ask for clarification, document analysis, and procedural guidance.'),
   ('off-topic', 'Off-topic', 'Anything not directly related to cases, filings, or records.'),
   ('bribery-allegations', 'Bribery Allegations', 'Discuss specific bribery allegations.'),
