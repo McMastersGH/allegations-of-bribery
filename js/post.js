@@ -34,7 +34,19 @@ function escapeHtml(s) {
 
 function fmtDate(iso) {
   try {
-    return new Date(iso).toLocaleString();
+    // Normalize common timestamp formats so Date parsing is consistent:
+    // - replace space between date and time with 'T'
+    // - treat timezone-less timestamps as UTC by appending 'Z'
+    if (typeof iso === 'string') {
+      iso = iso.replace(/^([0-9]{4}-[0-9]{2}-[0-9]{2})\s+/, '$1T');
+      if (/^\d{4}-\d{2}-\d{2}T/.test(iso) && !(/[zZ]$|[+\-]\d{2}:\d{2}$/.test(iso))) {
+        iso = iso + 'Z';
+      }
+    }
+    const d = new Date(iso);
+    const local = d.toLocaleString();
+    const utcIso = d.toISOString().replace('T', ' ').replace('Z', '');
+    return `${local} (UTC ${utcIso})`;
   } catch {
     return iso;
   }
@@ -164,7 +176,9 @@ async function renderFiles(postId) {
     const makeToggle = (targetEl, showText = "Hide preview", hideText = "Show preview") => {
       const btn = document.createElement("button");
       btn.className = "btn btn-sm";
-      btn.textContent = showText;
+      // Start previews hidden to avoid clutter; button shows 'Show preview'
+      try { targetEl.style.display = "none"; } catch (e) {}
+      btn.textContent = hideText;
       btn.style.marginTop = "6px";
       btn.onclick = () => {
         if (targetEl.style.display === "none") {
@@ -278,31 +292,43 @@ async function renderComments(post) {
   // Fetch current session once so we can check ownership
   const session = await getSession();
   const currentUserId = session?.user?.id || null;
-
+  // Build a tree of comments (parent_id -> children)
+  const byId = new Map();
   for (const c of comments) {
+    c.children = [];
+    byId.set(c.id, c);
+  }
+  const roots = [];
+  for (const c of comments) {
+    if (c.parent_id && byId.has(c.parent_id)) {
+      byId.get(c.parent_id).children.push(c);
+    } else {
+      roots.push(c);
+    }
+  }
+
+  const renderNode = (c, depth = 0) => {
     const el = document.createElement("div");
     el.className = "item";
+    el.style.marginLeft = `${depth * 18}px`;
     const commenter = c.is_anonymous ? "Anonymous" : (c.display_name || "Member");
 
-    // Determine whether the current user can edit/delete this comment:
-    // - comment author (when author_id is present)
-    // - OR the post author (thread owner)
-    const canManage = !!currentUserId && (
-      (c.author_id && currentUserId === c.author_id) ||
-      (post.author_id && currentUserId === post.author_id)
-    );
-
     const bodyHtml = `<div class="prose" style="margin-top:8px;white-space:pre-wrap">${escapeHtml(c.body)}</div>`;
-
     el.innerHTML = `
       <div class="muted"><b>${escapeHtml(commenter)}</b> • ${escapeHtml(fmtDate(c.created_at))}</div>
       ${bodyHtml}
     `;
 
-    if (canManage) {
-      const ctrl = document.createElement("div");
-      ctrl.style.marginTop = "6px";
+    // Manage controls (edit/delete) same rules as before
+    const canManage = !!currentUserId && (
+      (c.author_id && currentUserId === c.author_id) ||
+      (post.author_id && currentUserId === post.author_id)
+    );
 
+    const ctrl = document.createElement("div");
+    ctrl.style.marginTop = "6px";
+
+    if (canManage) {
       const editBtn = document.createElement("button");
       editBtn.className = "btn btn-sm";
       editBtn.textContent = "Edit";
@@ -316,7 +342,6 @@ async function renderComments(post) {
       ctrl.appendChild(deleteBtn);
       el.appendChild(ctrl);
 
-      // Edit flow: replace body with a textarea + Save/Cancel
       editBtn.onclick = () => {
         const textarea = document.createElement("textarea");
         textarea.className = "input";
@@ -333,7 +358,6 @@ async function renderComments(post) {
         cancelBtn.className = "btn btn-sm";
         cancelBtn.textContent = "Cancel";
 
-        // Replace body HTML with editor
         const bodyEl = el.querySelector(".prose");
         if (bodyEl) bodyEl.replaceWith(textarea);
         ctrl.style.display = "none";
@@ -348,7 +372,6 @@ async function renderComments(post) {
           try {
             saveBtn.disabled = true;
             await updateComment(c.id, textarea.value.trim());
-            // refresh comments
             await renderComments(post);
           } catch (e) {
             saveBtn.disabled = false;
@@ -356,10 +379,7 @@ async function renderComments(post) {
           }
         };
 
-        cancelBtn.onclick = () => {
-          // simply re-render comments to restore original state
-          renderComments(post).catch(() => {});
-        };
+        cancelBtn.onclick = () => renderComments(post).catch(() => {});
       };
 
       deleteBtn.onclick = async () => {
@@ -375,8 +395,79 @@ async function renderComments(post) {
       };
     }
 
+    // Reply control for authenticated users
+    if (currentUserId) {
+      const replyBtn = document.createElement("button");
+      replyBtn.className = "btn btn-sm";
+      replyBtn.textContent = "Reply";
+      replyBtn.style.marginLeft = "8px";
+      replyBtn.onclick = () => {
+        // Avoid adding multiple reply boxes
+        if (el.querySelector('.reply-box')) return;
+        const textarea = document.createElement('textarea');
+        textarea.className = 'input reply-box';
+        textarea.style.width = '100%';
+        textarea.style.minHeight = '60px';
+        textarea.style.marginTop = '6px';
+
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'btn btn-sm';
+        saveBtn.textContent = 'Reply';
+        saveBtn.style.marginTop = '6px';
+        saveBtn.style.marginRight = '6px';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn btn-sm';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.style.marginTop = '6px';
+
+        el.appendChild(textarea);
+        el.appendChild(saveBtn);
+        el.appendChild(cancelBtn);
+
+        saveBtn.onclick = async () => {
+          try {
+            saveBtn.disabled = true;
+            const body = (textarea.value || '').trim();
+            if (!body) {
+              alert('Reply cannot be empty.');
+              saveBtn.disabled = false;
+              return;
+            }
+            const status = await getMyAuthorStatus();
+            const isAnon = !!status?.is_anonymous;
+            const displayName = status?.display_name || null;
+            const myUserId = status?.user_id || null;
+            await addComment(post.id, body, displayName, isAnon, myUserId, c.id);
+            await renderComments(post);
+          } catch (e) {
+            saveBtn.disabled = false;
+            alert(`Reply failed: ${e?.message || String(e)}`);
+          }
+        };
+
+        cancelBtn.onclick = () => {
+          const box = el.querySelector('.reply-box');
+          if (box) box.remove();
+          saveBtn.remove();
+          cancelBtn.remove();
+        };
+      };
+      ctrl.appendChild(replyBtn);
+    }
+
+    // Attach rendered node
     commentsEl.appendChild(el);
-  }
+
+    // Render children recursively
+    if (c.children && c.children.length) {
+      for (const child of c.children) {
+        renderNode(child, depth + 1);
+      }
+    }
+  };
+
+  for (const r of roots) renderNode(r, 0);
 }
 
 async function wireCommentForm(post) {

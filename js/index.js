@@ -31,7 +31,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function fmtDate(iso) {
     try {
-      return new Date(iso).toLocaleString();
+      if (typeof iso === 'string') {
+        iso = iso.replace(/^([0-9]{4}-[0-9]{2}-[0-9]{2})\s+/, '$1T');
+        if (/^\d{4}-\d{2}-\d{2}T/.test(iso) && !(/[zZ]$|[+\-]\d{2}:\d{2}$/.test(iso))) {
+          iso = iso + 'Z';
+        }
+      }
+      try {
+        const d = new Date(iso);
+        const local = d.toLocaleString();
+        const utcIso = d.toISOString().replace('T', ' ').replace('Z', '');
+        return `${local} (UTC ${utcIso})`;
+      } catch {
+        return iso;
+      }
     } catch {
       return iso;
     }

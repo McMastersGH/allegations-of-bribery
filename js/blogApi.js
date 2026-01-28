@@ -227,7 +227,7 @@ export async function listComments(postId) {
   // Include author_id when available so the client can determine ownership
   const { data, error } = await sb
     .from("comments")
-    .select("id, body, display_name, created_at, is_anonymous, author_id")
+    .select("id, body, display_name, created_at, is_anonymous, author_id, parent_id")
     .eq("post_id", postId)
     .order("created_at", { ascending: true });
 
@@ -258,15 +258,21 @@ export async function addComment(postId, body, displayName, isAnonymous = false,
     }
   }
 
+  // Support optional parent_id for replies (passed via last argument)
+  const maybeParentId = arguments.length >= 6 ? arguments[5] : null;
+
+  const insertRow = {
+    post_id: postId,
+    body,
+    display_name: isAnonymous ? null : (displayName || null),
+    is_anonymous: Boolean(isAnonymous),
+    author_id: attachAuthorId,
+  };
+  if (maybeParentId) insertRow.parent_id = maybeParentId;
+
   const { data, error } = await sb
     .from("comments")
-    .insert([{
-      post_id: postId,
-      body,
-      display_name: isAnonymous ? null : (displayName || null),
-      is_anonymous: Boolean(isAnonymous),
-      author_id: attachAuthorId,
-    }])
+    .insert([insertRow])
     .select("id")
     .single();
 

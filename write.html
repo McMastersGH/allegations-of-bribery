@@ -107,8 +107,18 @@
 
   <script type="module">
     import { wireSpellcheck } from "./js/spellcheck.js";
-    // wire spellcheck for compose fields
-    wireSpellcheck({ textareaId: 'content', buttonId: 'checkDocBtn' });
+    import { getSession } from "./js/auth.js";
+
+    (async () => {
+      const session = await getSession();
+      const btn = document.getElementById('checkDocBtn');
+      if (!session) {
+        if (btn) btn.style.display = 'none';
+        return;
+      }
+      // wire spellcheck for compose fields only when signed in
+      wireSpellcheck({ textareaId: 'content', buttonId: 'checkDocBtn' });
+    })();
   </script>
 
   <script type="module" src="./js/write.js"></script>
