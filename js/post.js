@@ -39,6 +39,56 @@ function escapeHtml(s) {
     .replaceAll("'", "&#039;");
 }
 
+// Convert plain-text containing URLs into a DOM element with anchors.
+function createLinkifiedProse(text) {
+  const container = document.createElement('div');
+  container.className = 'prose';
+
+  // Match URLs starting with http(s):// or www.
+  const regex = /((?:https?:\/\/|www\.)[^\s<>]+)/g;
+  let lastIndex = 0;
+  text = String(text || '');
+  let m;
+  while ((m = regex.exec(text)) !== null) {
+    const url = m[0];
+    const before = text.slice(lastIndex, m.index);
+    if (before) container.appendChild(document.createTextNode(before));
+
+    // Normalize href (add scheme for www.)
+    let href = url;
+    if (href.startsWith('www.')) href = 'http://' + href;
+
+    try {
+      const a = document.createElement('a');
+      a.href = href;
+      a.textContent = url;
+
+      // Same-site links should open in the same tab; external links open a new tab.
+      try {
+        const parsed = new URL(a.href, window.location.href);
+        const host = (parsed.hostname || '').toLowerCase();
+        if (!host.endsWith('allegationsofbribery.com')) {
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+        }
+      } catch (e) {
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+      }
+
+      container.appendChild(a);
+    } catch (e) {
+      container.appendChild(document.createTextNode(url));
+    }
+
+    lastIndex = regex.lastIndex;
+  }
+
+  const rest = text.slice(lastIndex);
+  if (rest) container.appendChild(document.createTextNode(rest));
+  return container;
+}
+
 // Lightweight modal viewer for images and PDFs
 let __fileModal = null;
 function showFileModal(url, mime, opener) {
@@ -461,11 +511,13 @@ async function renderComments(post) {
     el.style.marginLeft = `${depth * 18}px`;
     const commenter = c.is_anonymous ? "Anonymous" : (c.display_name || "Member");
 
-    const bodyHtml = `<div class="prose" style="margin-top:8px;white-space:pre-wrap">${escapeHtml(c.body)}</div>`;
     el.innerHTML = `
       <div class="muted"><b>${escapeHtml(commenter)}</b> • ${escapeHtml(fmtDate(c.created_at))}</div>
-      ${bodyHtml}
     `;
+    const bodyEl = createLinkifiedProse(c.body || '');
+    bodyEl.style.marginTop = '8px';
+    bodyEl.style.whiteSpace = 'pre-wrap';
+    el.appendChild(bodyEl);
 
     // Manage controls (edit/delete) same rules as before
     const canManage = !!currentUserId && (
@@ -776,8 +828,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         `Published: ${fmtDate(post.created_at, tz)}` + (post.status === "published" ? "" : " (DRAFT)");
     }
 
-    // body is plain text in your schema; render safely
-    if (postContent) postContent.innerHTML = `<div id="postBody" style="white-space:pre-wrap;line-height:1.6">${escapeHtml(post.body || "")}</div>`;
+    // body is plain text in your schema; render safely and linkify URLs
+    if (postContent) {
+      postContent.innerHTML = "";
+      const postBody = createLinkifiedProse(post.body || "");
+      postBody.id = "postBody";
+      postBody.style.whiteSpace = 'pre-wrap';
+      postBody.style.lineHeight = '1.6';
+      postContent.appendChild(postBody);
+    }
 
     // If current user is post author, show Edit/Delete controls
     try {
