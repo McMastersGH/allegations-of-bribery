@@ -28,7 +28,7 @@ export async function populateForumCounts() {
       container.innerHTML = `
         <div class="mt-3 flex items-center gap-4 text-xs text-slate-500">
           <span><span class="skeleton-line" style="width:72px"></span></span>
-          <span><span class="skeleton-line" style="width:56px"></span></span>
+          <span><span class="skeleton-line" style="width:48px"></span></span>
         </div>`;
     }
   }
@@ -48,10 +48,9 @@ export async function populateForumCounts() {
       const card = findCardForForum(slug);
       if (!card) continue;
       const row = map[slug] || { posts_count: 0, comments_count: 0 };
-      const postsTotal = (row.posts_count || 0) + (row.comments_count || 0);
       const container = card.querySelector(".mt-3.flex.items-center") || card.querySelector(".mt-3.flex.items-center.gap-4") || card.querySelector(".mt-3.flex.items-center.gap-4.text-xs");
       if (container) {
-        container.innerHTML = `<div class="mt-3 flex items-center gap-4 text-xs text-slate-500"><span>Posts: ${postsTotal}</span><span>Threads: ${row.posts_count || 0}</span></div>`;
+        container.innerHTML = `<div class="mt-3 flex items-center gap-4 text-xs text-slate-500"><span>Threads: ${row.posts_count || 0}</span><span>Comments: ${row.comments_count || 0}</span></div>`;
       }
     }
   } catch (e) {
@@ -61,7 +60,7 @@ export async function populateForumCounts() {
       if (!card) continue;
       const container = card.querySelector(".mt-3.flex.items-center") || card.querySelector(".mt-3.flex.items-center.gap-4") || card.querySelector(".mt-3.flex.items-center.gap-4.text-xs");
       if (container) {
-        container.innerHTML = `<div class=\"mt-3 flex items-center gap-4 text-xs text-slate-500\"><span>Posts: 0</span><span>Threads: 0</span></div>`;
+        container.innerHTML = `<div class=\"mt-3 flex items-center gap-4 text-xs text-slate-500\"><span>Threads: 0</span><span>Comments: 0</span></div>`;
       }
     }
   }

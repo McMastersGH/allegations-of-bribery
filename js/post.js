@@ -1,5 +1,5 @@
 // js/post.js
-import { getPostById, listComments, addComment, listPostFiles } from "./blogApi.js";
+import { getPostById, listComments, addComment, listPostFiles, updateComment, deleteComment, updatePost, deletePost } from "./blogApi.js";
 import { getPublicUrl } from "./storageApi.js";
 import { getSession, wireAuthButtons, getMyAuthorStatus, setMyAnonymity } from "./auth.js";
 
@@ -63,24 +63,116 @@ async function renderFiles(postId) {
   }
 }
 
-async function renderComments(postId) {
+async function renderComments(post) {
   if (!commentsEl) return;
   commentsEl.innerHTML = "";
-  const comments = await listComments(postId);
+  const comments = await listComments(post.id);
 
   if (!comments.length) {
     commentsEl.innerHTML = `<div class="muted">No comments yet.</div>`;
     return;
   }
 
+  // Fetch current session once so we can check ownership
+  const session = await getSession();
+  const currentUserId = session?.user?.id || null;
+
   for (const c of comments) {
     const el = document.createElement("div");
     el.className = "item";
     const commenter = c.is_anonymous ? "Anonymous" : (c.display_name || "Member");
+
+    // Determine whether the current user can edit/delete this comment:
+    // - comment author (when author_id is present)
+    // - OR the post author (thread owner)
+    const canManage = !!currentUserId && (
+      (c.author_id && currentUserId === c.author_id) ||
+      (post.author_id && currentUserId === post.author_id)
+    );
+
+    const bodyHtml = `<div class="prose" style="margin-top:8px;white-space:pre-wrap">${escapeHtml(c.body)}</div>`;
+
     el.innerHTML = `
       <div class="muted"><b>${escapeHtml(commenter)}</b> • ${escapeHtml(fmtDate(c.created_at))}</div>
-      <div class="prose" style="margin-top:8px;white-space:pre-wrap">${escapeHtml(c.body)}</div>
+      ${bodyHtml}
     `;
+
+    if (canManage) {
+      const ctrl = document.createElement("div");
+      ctrl.style.marginTop = "6px";
+
+      const editBtn = document.createElement("button");
+      editBtn.className = "btn btn-sm";
+      editBtn.textContent = "Edit";
+      editBtn.style.marginRight = "6px";
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "btn btn-sm btn-danger";
+      deleteBtn.textContent = "Delete";
+
+      ctrl.appendChild(editBtn);
+      ctrl.appendChild(deleteBtn);
+      el.appendChild(ctrl);
+
+      // Edit flow: replace body with a textarea + Save/Cancel
+      editBtn.onclick = () => {
+        const textarea = document.createElement("textarea");
+        textarea.className = "input";
+        textarea.style.width = "100%";
+        textarea.style.minHeight = "80px";
+        textarea.value = c.body || "";
+
+        const saveBtn = document.createElement("button");
+        saveBtn.className = "btn btn-sm";
+        saveBtn.textContent = "Save";
+        saveBtn.style.marginRight = "6px";
+
+        const cancelBtn = document.createElement("button");
+        cancelBtn.className = "btn btn-sm";
+        cancelBtn.textContent = "Cancel";
+
+        // Replace body HTML with editor
+        const bodyEl = el.querySelector(".prose");
+        if (bodyEl) bodyEl.replaceWith(textarea);
+        ctrl.style.display = "none";
+
+        const actionRow = document.createElement("div");
+        actionRow.style.marginTop = "6px";
+        actionRow.appendChild(saveBtn);
+        actionRow.appendChild(cancelBtn);
+        el.appendChild(actionRow);
+
+        saveBtn.onclick = async () => {
+          try {
+            saveBtn.disabled = true;
+            await updateComment(c.id, textarea.value.trim());
+            // refresh comments
+            await renderComments(post);
+          } catch (e) {
+            saveBtn.disabled = false;
+            alert(`Save failed: ${e?.message || String(e)}`);
+          }
+        };
+
+        cancelBtn.onclick = () => {
+          // simply re-render comments to restore original state
+          renderComments(post).catch(() => {});
+        };
+      };
+
+      deleteBtn.onclick = async () => {
+        if (!confirm("Delete this comment? This cannot be undone.")) return;
+        try {
+          deleteBtn.disabled = true;
+          await deleteComment(c.id);
+          await renderComments(post);
+        } catch (e) {
+          deleteBtn.disabled = false;
+          alert(`Delete failed: ${e?.message || String(e)}`);
+        }
+      };
+    }
+
     commentsEl.appendChild(el);
   }
 }
@@ -162,12 +254,13 @@ async function wireCommentForm(post) {
 
         const isAnon = !!status?.is_anonymous;
         const displayName = status?.display_name || null;
+        const myUserId = status?.user_id || null;
 
-        await addComment(post.id, body, displayName, isAnon);
+        await addComment(post.id, body, displayName, isAnon, myUserId);
 
         if (commentText) commentText.value = "";
         if (commentMsg) commentMsg.textContent = "Posted.";
-        await renderComments(post.id);
+        await renderComments(post);
       } catch (e) {
         if (commentMsg) commentMsg.textContent = `Error: ${e?.message || String(e)}`;
       }
@@ -220,7 +313,87 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // body is plain text in your schema; render safely
-    if (postContent) postContent.innerHTML = `<div style="white-space:pre-wrap;line-height:1.6">${escapeHtml(post.body || "")}</div>`;
+    if (postContent) postContent.innerHTML = `<div id="postBody" style="white-space:pre-wrap;line-height:1.6">${escapeHtml(post.body || "")}</div>`;
+
+    // If current user is post author, show Edit/Delete controls
+    try {
+      const session = await getSession();
+      const currentUserId = session?.user?.id || null;
+      const isPostAuthor = !!currentUserId && currentUserId === post.author_id;
+      if (isPostAuthor && postMeta) {
+        const postControls = document.createElement("div");
+        postControls.style.marginTop = "8px";
+
+        const editPostBtn = document.createElement("button");
+        editPostBtn.className = "btn btn-sm";
+        editPostBtn.textContent = "Edit post";
+        editPostBtn.style.marginRight = "8px";
+
+        const deletePostBtn = document.createElement("button");
+        deletePostBtn.className = "btn btn-sm btn-danger";
+        deletePostBtn.textContent = "Delete post";
+
+        postMeta.appendChild(postControls);
+        postControls.appendChild(editPostBtn);
+        postControls.appendChild(deletePostBtn);
+
+        editPostBtn.onclick = () => {
+          const bodyEl = document.getElementById("postBody");
+          if (!bodyEl) return;
+          const textarea = document.createElement("textarea");
+          textarea.className = "input";
+          textarea.style.width = "100%";
+          textarea.style.minHeight = "160px";
+          textarea.value = post.body || "";
+
+          bodyEl.replaceWith(textarea);
+          postControls.style.display = "none";
+
+          const saveBtn = document.createElement("button");
+          saveBtn.className = "btn btn-sm";
+          saveBtn.textContent = "Save";
+          saveBtn.style.marginRight = "8px";
+
+          const cancelBtn = document.createElement("button");
+          cancelBtn.className = "btn btn-sm";
+          cancelBtn.textContent = "Cancel";
+
+          postControls.parentElement.appendChild(saveBtn);
+          postControls.parentElement.appendChild(cancelBtn);
+
+          saveBtn.onclick = async () => {
+            try {
+              saveBtn.disabled = true;
+              await updatePost(post.id, { body: textarea.value || "" });
+              // reload page to refresh content and metadata
+              window.location.reload();
+            } catch (e) {
+              saveBtn.disabled = false;
+              alert(`Save failed: ${e?.message || String(e)}`);
+            }
+          };
+
+          cancelBtn.onclick = () => window.location.reload();
+        };
+
+        deletePostBtn.onclick = async () => {
+          if (!confirm("Delete this thread? This will remove the post and its comments.")) return;
+          try {
+            deletePostBtn.disabled = true;
+            await deletePost(post.id);
+            // Redirect back to forum list
+            const forum = post?.forum_slug || "";
+            const backHref = forum ? `./forum.html?forum=${encodeURIComponent(forum)}` : "./index.html";
+            window.location.href = backHref;
+          } catch (e) {
+            deletePostBtn.disabled = false;
+            alert(`Delete failed: ${e?.message || String(e)}`);
+          }
+        };
+      }
+    } catch (e) {
+      // ignore
+    }
 
     // Ensure header back button (in shared header) points to the forum thread list
     try {
@@ -236,7 +409,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     await renderFiles(post.id);
-    await renderComments(post.id);
+    await renderComments(post);
     await wireCommentForm(post);
   } catch (e) {
     if (postTitle) postTitle.textContent = "Error";

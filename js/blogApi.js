@@ -194,11 +194,40 @@ export async function createPost(post) {
   return data;
 }
 
+export async function updatePost(postId, updates) {
+  const sb = getSupabaseClient();
+  if (!postId) throw new Error("updatePost: postId is required");
+  const { data, error } = await sb
+    .from("posts")
+    .update(updates)
+    .eq("id", postId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deletePost(postId) {
+  const sb = getSupabaseClient();
+  if (!postId) throw new Error("deletePost: postId is required");
+  const { data, error } = await sb
+    .from("posts")
+    .delete()
+    .eq("id", postId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function listComments(postId) {
   const sb = getSupabaseClient();
+  // Include author_id when available so the client can determine ownership
   const { data, error } = await sb
     .from("comments")
-    .select("id, body, display_name, created_at, is_anonymous")
+    .select("id, body, display_name, created_at, is_anonymous, author_id")
     .eq("post_id", postId)
     .order("created_at", { ascending: true });
 
@@ -214,8 +243,21 @@ export async function listComments(postId) {
  * @param {string} displayName
  * @param {boolean} isAnonymous
  */
-export async function addComment(postId, body, displayName, isAnonymous = false) {
+export async function addComment(postId, body, displayName, isAnonymous = false, authorId = null) {
   const sb = getSupabaseClient();
+  // Prefer an explicit `authorId` passed from the UI; otherwise try to read
+  // the currently authenticated user from the client SDK.
+  let attachAuthorId = authorId || null;
+  if (!attachAuthorId) {
+    try {
+      const { data: userData } = await sb.auth.getUser();
+      const u = userData?.user;
+      if (u?.id) attachAuthorId = u.id;
+    } catch {
+      // ignore; author_id may remain null
+    }
+  }
+
   const { data, error } = await sb
     .from("comments")
     .insert([{
@@ -223,9 +265,38 @@ export async function addComment(postId, body, displayName, isAnonymous = false)
       body,
       display_name: isAnonymous ? null : (displayName || null),
       is_anonymous: Boolean(isAnonymous),
+      author_id: attachAuthorId,
     }])
     .select("id")
     .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateComment(commentId, body) {
+  const sb = getSupabaseClient();
+  if (!commentId) throw new Error("updateComment: commentId is required");
+  const { data, error } = await sb
+    .from("comments")
+    .update({ body })
+    .eq("id", commentId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteComment(commentId) {
+  const sb = getSupabaseClient();
+  if (!commentId) throw new Error("deleteComment: commentId is required");
+  const { data, error } = await sb
+    .from("comments")
+    .delete()
+    .eq("id", commentId)
+    .select("id")
+    .maybeSingle();
 
   if (error) throw error;
   return data;

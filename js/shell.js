@@ -20,7 +20,7 @@ export default async function initShell() {
       <div class="flex items-center gap-3">
         <a id="headerBack" class="rounded-md border border-stroke px-3 py-2 text-sm text-slate-200 hover:bg-slate-800" href="./index.html" style="display:none;">← Back</a>
 
-        <a id="writeLink" class="hover:text-white" href="./write.html" style="display:none;">Write</a>
+        <a id="homeLink" href="./index.html" class="rounded-md border border-stroke px-3 py-2 text-sm text-slate-200 hover:bg-slate-800">Home</a>
 
         <a id="loginLink" href="./login.html" class="rounded-md bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Log in</a>
         <a id="registerLink" href="./signup.html" class="rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800">Register</a>
@@ -57,6 +57,19 @@ export default async function initShell() {
     document.body.insertBefore(headerPlaceholder, document.body.firstChild);
   }
   headerPlaceholder.innerHTML = headerHtml;
+
+  // Hide the Home link when already on the home page
+  try {
+    const homeLink = document.getElementById("homeLink");
+    if (homeLink) {
+      const name = (window.location.pathname || "").split("/").pop();
+      if (!name || name === "index.html" || name === "index.htm") {
+        homeLink.style.display = "none";
+      }
+    }
+  } catch (e) {
+    // ignore (server-side render or no window)
+  }
 
   // Replace or insert footer placeholder at end of main
   let footerPlaceholder = document.getElementById("siteFooter");

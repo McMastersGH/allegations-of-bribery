@@ -99,7 +99,7 @@ BEGIN
   END IF;
   RETURN NULL;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger to call posts counter function
 DROP TRIGGER IF EXISTS forums_posts_count_trig ON posts;
@@ -113,13 +113,13 @@ DECLARE
   forum_slug text;
 BEGIN
   IF (TG_OP = 'INSERT') THEN
-    SELECT forum_slug INTO forum_slug FROM posts WHERE id = NEW.post_id LIMIT 1;
+    SELECT p.forum_slug INTO forum_slug FROM posts p WHERE p.id = NEW.post_id LIMIT 1;
     IF forum_slug IS NOT NULL THEN
       UPDATE forums SET comments_count = comments_count + 1 WHERE slug = forum_slug;
     END IF;
     RETURN NEW;
   ELSIF (TG_OP = 'DELETE') THEN
-    SELECT forum_slug INTO forum_slug FROM posts WHERE id = OLD.post_id LIMIT 1;
+    SELECT p.forum_slug INTO forum_slug FROM posts p WHERE p.id = OLD.post_id LIMIT 1;
     IF forum_slug IS NOT NULL THEN
       UPDATE forums SET comments_count = GREATEST(comments_count - 1, 0) WHERE slug = forum_slug;
     END IF;
@@ -127,11 +127,11 @@ BEGIN
   ELSIF (TG_OP = 'UPDATE') THEN
     -- If post_id changed, decrement old forum and increment new forum
     IF OLD.post_id IS DISTINCT FROM NEW.post_id THEN
-      SELECT forum_slug INTO forum_slug FROM posts WHERE id = OLD.post_id LIMIT 1;
+      SELECT p.forum_slug INTO forum_slug FROM posts p WHERE p.id = OLD.post_id LIMIT 1;
       IF forum_slug IS NOT NULL THEN
         UPDATE forums SET comments_count = GREATEST(comments_count - 1, 0) WHERE slug = forum_slug;
       END IF;
-      SELECT forum_slug INTO forum_slug FROM posts WHERE id = NEW.post_id LIMIT 1;
+      SELECT p.forum_slug INTO forum_slug FROM posts p WHERE p.id = NEW.post_id LIMIT 1;
       IF forum_slug IS NOT NULL THEN
         UPDATE forums SET comments_count = comments_count + 1 WHERE slug = forum_slug;
       END IF;
@@ -140,7 +140,7 @@ BEGIN
   END IF;
   RETURN NULL;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger to call comments counter function
 DROP TRIGGER IF EXISTS forums_comments_count_trig ON comments;
