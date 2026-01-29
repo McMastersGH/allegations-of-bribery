@@ -50,7 +50,7 @@ export default async function initShell() {
       </div>
     </div>
     <!-- Optional ad row (controlled by config.ENABLE_ADS) -->
-    <div id="headerAd" class="mx-auto hidden max-w-6xl px-4 py-2 lg:block">
+    <div id="headerAd" class="mx-auto block max-w-6xl px-4 py-2">
       <div class="rounded-lg border border-stroke bg-panel p-2 flex items-center justify-center">
         <div id="ad-slot" class="w-full text-center text-slate-400 text-sm">Ad placeholder</div>
       </div>
