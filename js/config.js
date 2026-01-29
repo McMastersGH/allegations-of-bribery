@@ -12,6 +12,6 @@ export const SITE_TIMEZONE = "America/New_York";
 // Ads configuration
 // Set `ENABLE_ADS` to true to enable loading the selected provider.
 // Provider-specific settings (e.g. `ADSENSE_CLIENT`) are provided as placeholders.
-export const ENABLE_ADS = false;
+export const ENABLE_ADS = true;
 export const ADS_PROVIDER = ""; // e.g. 'adsense'
 export const ADSENSE_CLIENT = "ca-pub-REPLACE_ME"; // set when using AdSense
