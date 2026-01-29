@@ -1,8 +1,8 @@
 // js/post.js
-import { getPostById, listComments, addComment, listPostFiles, updateComment, deleteComment, updatePost, deletePost, deletePostFile } from "./blogApi.js";
+import { getPostById, listComments, addComment, listPostFiles, listCommentFiles, updateComment, deleteComment, updatePost, deletePost, deletePostFile, deleteCommentFile } from "./blogApi.js";
 import { getPublicUrl } from "./storageApi.js";
 import { getSession, wireAuthButtons, getMyAuthorStatus, setMyAnonymity } from "./auth.js";
-import { uploadAndRecordFiles } from "./uploader.js";
+import { uploadAndRecordFiles, uploadAndRecordCommentFiles } from "./uploader.js";
 import { bucketExists } from "./storageApi.js";
 import { POST_UPLOADS_BUCKET, SITE_TIMEZONE } from "./config.js";
 
@@ -16,6 +16,7 @@ let commentGate;
 let commentText;
 let commentBtn;
 let commentMsg;
+let commentFilesInput;
 
 // Handle anonymity toggle
 let commentAnonPanel;
@@ -482,6 +483,64 @@ async function renderFiles(postId) {
   if (isPostAuthor) attachments.appendChild(makeUploadUi());
 }
 
+// Render an author badge under the post body showing optional registration
+// fields (credentials, union affiliation, bio, etc.). Hide for anonymous
+// posts or when no profile info is available.
+function getFirstProfileValue(profile, keys) {
+  if (!profile) return null;
+  for (const k of keys) {
+    if (!Object.prototype.hasOwnProperty.call(profile, k)) continue;
+    const val = profile[k];
+    if (val == null) continue;
+    if (typeof val === 'string') {
+      const t = val.trim();
+      if (t) return t;
+    } else if (val) {
+      return val;
+    }
+  }
+  return null;
+}
+
+function renderAuthorBadge(post, profile) {
+  const badge = document.getElementById('authorBadge');
+  if (!badge) return;
+  try {
+    if (!post || post.is_anonymous || !post.author_id) {
+      badge.style.display = 'none';
+      return;
+    }
+
+    // Candidate fields collected from the authors table (deployments may
+    // store different names — check common alternatives).
+    const credentials = getFirstProfileValue(profile, ['credentials', 'credential', 'professional', 'title']);
+    const unionAff = getFirstProfileValue(profile, ['union_affiliation', 'union', 'union_aff']);
+    const organization = getFirstProfileValue(profile, ['organization', 'employer', 'org']);
+    const bio = getFirstProfileValue(profile, ['bio', 'about', 'summary']);
+
+    const parts = [];
+    if (credentials) parts.push(`<div>${escapeHtml(credentials)}</div>`);
+    if (unionAff) parts.push(`<div>${escapeHtml(unionAff)}</div>`);
+    if (organization) parts.push(`<div>${escapeHtml(organization)}</div>`);
+    if (bio) parts.push(`<div class="muted" style="margin-top:6px">${escapeHtml(bio)}</div>`);
+
+    if (!parts.length) {
+      // Nothing to show — keep hidden
+      badge.style.display = 'none';
+      badge.innerHTML = '';
+      return;
+    }
+
+    badge.innerHTML = `
+      <div style="margin-top:8px">${parts.join('')}</div>
+    `;
+    badge.style.display = '';
+  } catch (e) {
+    // On error, hide badge silently
+    try { badge.style.display = 'none'; } catch (ee) {}
+  }
+}
+
 async function renderComments(post) {
   if (!commentsEl) return;
   commentsEl.innerHTML = "";
@@ -494,6 +553,8 @@ async function renderComments(post) {
 
   // Fetch current session once so we can check ownership
   const session = await getSession();
+  // Cache author profiles to avoid repeated network calls
+  const authorProfiles = new Map();
   const currentUserId = session?.user?.id || null;
   // Build a tree of comments (parent_id -> children)
   const byId = new Map();
@@ -510,10 +571,11 @@ async function renderComments(post) {
     }
   }
 
-  const renderNode = (c, depth = 0) => {
+  const renderNode = async (c, depth = 0) => {
     const el = document.createElement("div");
     el.className = "item";
     el.style.marginLeft = `${depth * 18}px`;
+    if (depth > 0) el.classList.add('reply');
     const commenter = c.is_anonymous ? "Anonymous" : (c.display_name || "Member");
 
     el.innerHTML = `
@@ -524,11 +586,98 @@ async function renderComments(post) {
     bodyEl.style.whiteSpace = 'pre-wrap';
     el.appendChild(bodyEl);
 
-    // Manage controls (edit/delete) same rules as before
+    // Determine whether current user can manage this comment (used by file controls)
     const canManage = !!currentUserId && (
       (c.author_id && currentUserId === c.author_id) ||
       (post.author_id && currentUserId === post.author_id)
     );
+
+    // Render any files attached to this comment
+    try {
+      const commentFiles = await listCommentFiles(c.id);
+      if (commentFiles && commentFiles.length) {
+        const filesWrap = document.createElement('div');
+        filesWrap.style.marginTop = '8px';
+        filesWrap.className = 'comment-files';
+
+        for (const f of commentFiles) {
+          const url = getPublicUrl(f.bucket, f.object_path);
+          const fileEl = document.createElement('div');
+          fileEl.className = 'muted';
+          fileEl.style.marginTop = '6px';
+          fileEl.innerHTML = `<div><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(f.original_name)}</a> • ${escapeHtml(fmtDate(f.created_at))}</div>`;
+
+          const ctrls = document.createElement('div');
+          ctrls.style.marginTop = '6px';
+
+          if (!__isMobileDevice) {
+            const previewBtn = document.createElement('button');
+            previewBtn.className = 'btn btn-sm';
+            previewBtn.textContent = 'Preview';
+            previewBtn.onclick = (e) => { e.preventDefault(); showFileModal(url, (f.mime_type || '').toLowerCase(), previewBtn); };
+            ctrls.appendChild(previewBtn);
+          }
+
+          const downloadBtn = document.createElement('button');
+          downloadBtn.className = 'btn btn-sm';
+          downloadBtn.style.marginLeft = '8px';
+          downloadBtn.textContent = 'Download';
+          downloadBtn.onclick = async (e) => {
+            e.preventDefault();
+            try {
+              downloadBtn.disabled = true;
+              const prev = downloadBtn.textContent;
+              downloadBtn.textContent = 'Downloading…';
+              const resp = await fetch(url);
+              if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+              const blob = await resp.blob();
+              const blobUrl = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = blobUrl;
+              a.download = f.original_name || 'file';
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              URL.revokeObjectURL(blobUrl);
+              downloadBtn.textContent = prev;
+              downloadBtn.disabled = false;
+            } catch (err) {
+              downloadBtn.disabled = false;
+              downloadBtn.textContent = 'Download';
+              window.open(url, '_blank', 'noopener');
+            }
+          };
+          ctrls.appendChild(downloadBtn);
+
+          if (canManage) {
+            const delBtn = document.createElement('button');
+            delBtn.className = 'btn btn-sm btn-danger';
+            delBtn.style.marginLeft = '8px';
+            delBtn.textContent = 'Delete file';
+            delBtn.onclick = async () => {
+              if (!confirm('Delete this attachment? This will remove the file and its record.')) return;
+              try {
+                delBtn.disabled = true;
+                await deleteCommentFile(f.id);
+                await renderComments(post);
+              } catch (e) {
+                delBtn.disabled = false;
+                alert(`Delete failed: ${e?.message || String(e)}`);
+              }
+            };
+            ctrls.appendChild(delBtn);
+          }
+
+          fileEl.appendChild(ctrls);
+          filesWrap.appendChild(fileEl);
+        }
+
+        el.appendChild(filesWrap);
+      }
+    } catch (e) {
+      // ignore file rendering errors
+      console.error('comment files render error', e);
+    }
 
     const ctrl = document.createElement("div");
     ctrl.style.marginTop = "6px";
@@ -600,6 +749,44 @@ async function renderComments(post) {
       };
     }
 
+    // Render compact author badge for this comment if the commenter is a registered author
+    try {
+      if (!c.is_anonymous && c.author_id) {
+        let profile = authorProfiles.get(c.author_id);
+        if (profile === undefined) {
+          try {
+            profile = await (await import("./blogApi.js")).getAuthorProfile(c.author_id);
+          } catch (pe) {
+            profile = null;
+          }
+          authorProfiles.set(c.author_id, profile);
+        }
+
+        if (profile) {
+          const credentials = getFirstProfileValue(profile, ['credentials', 'credential', 'professional', 'title']);
+          const unionAff = getFirstProfileValue(profile, ['union_affiliation', 'union', 'union_aff']);
+          const organization = getFirstProfileValue(profile, ['organization', 'employer', 'org']);
+          const bio = getFirstProfileValue(profile, ['bio', 'about', 'summary']);
+
+          const parts = [];
+          if (credentials) parts.push(`<div>${escapeHtml(credentials)}</div>`);
+          if (unionAff) parts.push(`<div>${escapeHtml(unionAff)}</div>`);
+          if (organization) parts.push(`<div>${escapeHtml(organization)}</div>`);
+          if (bio) parts.push(`<div class="muted" style="margin-top:6px">${escapeHtml(bio)}</div>`);
+
+          if (parts.length) {
+            const badgeDiv = document.createElement('div');
+            badgeDiv.className = 'card author-badge';
+            badgeDiv.style.marginTop = '8px';
+            badgeDiv.innerHTML = parts.join('');
+            el.appendChild(badgeDiv);
+          }
+        }
+      }
+    } catch (e) {
+      // ignore profile render failures
+    }
+
     // Reply control for authenticated users
     if (currentUserId) {
       const replyBtn = document.createElement("button");
@@ -626,7 +813,16 @@ async function renderComments(post) {
         cancelBtn.textContent = 'Cancel';
         cancelBtn.style.marginTop = '6px';
 
+        // File input for reply attachments
+        const replyFileInput = document.createElement('input');
+        replyFileInput.type = 'file';
+        replyFileInput.multiple = true;
+        replyFileInput.className = 'input';
+        replyFileInput.style.display = 'block';
+        replyFileInput.style.marginTop = '6px';
+
         el.appendChild(textarea);
+        el.appendChild(replyFileInput);
         el.appendChild(saveBtn);
         el.appendChild(cancelBtn);
 
@@ -643,7 +839,18 @@ async function renderComments(post) {
             const isAnon = !!status?.is_anonymous;
             const displayName = status?.display_name || null;
             const myUserId = status?.user_id || null;
-            await addComment(post.id, body, displayName, isAnon, myUserId, c.id);
+            const added = await addComment(post.id, body, displayName, isAnon, myUserId, c.id);
+            try {
+              if (replyFileInput && replyFileInput.files && replyFileInput.files.length) {
+                const cid = added?.id;
+                if (cid) {
+                  await uploadAndRecordCommentFiles({ commentId: cid, authorId: myUserId, files: Array.from(replyFileInput.files) });
+                }
+              }
+            } catch (fupe) {
+              // non-fatal; inform user
+              alert(`Reply posted but file upload failed: ${fupe?.message || String(fupe)}`);
+            }
             await renderComments(post);
           } catch (e) {
             saveBtn.disabled = false;
@@ -664,15 +871,15 @@ async function renderComments(post) {
     // Attach rendered node
     commentsEl.appendChild(el);
 
-    // Render children recursively
+    // Render children recursively (fully expanded inline)
     if (c.children && c.children.length) {
       for (const child of c.children) {
-        renderNode(child, depth + 1);
+        await renderNode(child, depth + 1);
       }
     }
   };
 
-  for (const r of roots) renderNode(r, 0);
+  for (const r of roots) await renderNode(r, 0);
 }
 
 async function wireCommentForm(post) {
@@ -685,41 +892,68 @@ async function wireCommentForm(post) {
         commentGate.textContent = "To comment, please log in.";
         try { commentGate.style.color = 'var(--danger)'; } catch (e) {}
       }
-    if (commentBtn) commentBtn.disabled = true;
-    if (commentText) commentText.disabled = true;
 
-    if (commentAnonPanel) commentAnonPanel.style.display = "none";
+    // Hide the whole comment input area when not signed in
+    try { document.querySelector('label[for="commentText"]').style.display = 'none'; } catch (e) {}
+    if (commentText) commentText.style.display = 'none';
+    if (commentBtn) commentBtn.style.display = 'none';
+    const checkBtn = document.getElementById('checkCommentBtn');
+    if (checkBtn) checkBtn.style.display = 'none';
+    if (commentAnonPanel) commentAnonPanel.style.display = 'none';
     return;
   }
 
-  // Logged in: enable comment form + show anon toggle UI
-    if (commentGate) {
-      commentGate.textContent = "You are logged in.";
-      try { commentGate.style.color = ''; } catch (e) {}
-    }
-  if (commentBtn) commentBtn.disabled = false;
-  if (commentText) commentText.disabled = false;
-
-  if (commentAnonPanel) commentAnonPanel.style.display = "";
-  if (commentAnonToggle) commentAnonToggle.disabled = false;
-
-  // Initialize toggle state from DB
-  try {
-    const status = await getMyAuthorStatus(); // { is_anonymous, ... }
-    const isAnon = !!status?.is_anonymous;
-
-    if (commentAnonToggle) commentAnonToggle.checked = isAnon;
-    if (commentAnonStatus) {
-      commentAnonStatus.textContent = isAnon
-        ? "Anonymity is ON for your account."
-        : "Anonymity is OFF for your account.";
-    }
-  } catch (e) {
-    if (commentAnonStatus) {
-      commentAnonStatus.textContent = `Could not load anonymity status: ${e?.message || String(e)}`;
-    }
+  // Logged out: hide comment input area completely
+  if (!session) {
+    try { document.querySelector('label[for="commentText"]').style.display = 'none'; } catch (e) {}
+    if (commentText) commentText.style.display = 'none';
+    if (commentBtn) commentBtn.style.display = 'none';
+    const checkBtn = document.getElementById('checkCommentBtn');
+    if (checkBtn) checkBtn.style.display = 'none';
+    if (commentAnonPanel) commentAnonPanel.style.display = 'none';
+    return;
   }
 
+  // Logged in: show and enable comment UI
+  try { document.querySelector('label[for="commentText"]').style.display = ''; } catch (e) {}
+  if (commentText) { commentText.style.display = ''; commentText.disabled = false; }
+  if (commentBtn) { commentBtn.style.display = ''; commentBtn.disabled = false; }
+  // Add file input for comment attachments when signed in
+  try {
+    const wrap = document.getElementById('commentFormWrap');
+    if (wrap && !document.getElementById('commentFilesInput')) {
+      commentFilesInput = document.createElement('input');
+      commentFilesInput.type = 'file';
+      commentFilesInput.multiple = true;
+      commentFilesInput.id = 'commentFilesInput';
+      commentFilesInput.className = 'input';
+      commentFilesInput.style.display = 'block';
+      commentFilesInput.style.marginTop = '8px';
+      wrap.appendChild(commentFilesInput);
+
+      // Preflight bucket check
+      (async () => {
+        try {
+          const sessionNow = await getSession();
+          const currentUserId = sessionNow?.user?.id || null;
+          if (!currentUserId) {
+            commentFilesInput.disabled = true;
+            return;
+          }
+          const ok = await bucketExists(POST_UPLOADS_BUCKET);
+          if (!ok) {
+            commentFilesInput.disabled = true;
+          }
+        } catch (e) {
+          commentFilesInput.disabled = true;
+        }
+      })();
+    }
+  } catch (e) {}
+  const checkBtn = document.getElementById('checkCommentBtn');
+  if (checkBtn) checkBtn.style.display = '';
+  if (commentAnonPanel) commentAnonPanel.style.display = '';
+  if (commentAnonToggle) commentAnonToggle.disabled = false;
   // Persist toggle changes immediately
   if (commentAnonToggle) {
     commentAnonToggle.onchange = async () => {
@@ -760,7 +994,23 @@ async function wireCommentForm(post) {
         const displayName = status?.display_name || null;
         const myUserId = status?.user_id || null;
 
-        await addComment(post.id, body, displayName, isAnon, myUserId);
+        const added = await addComment(post.id, body, displayName, isAnon, myUserId);
+
+        // If attachments selected, upload them after comment creation
+        try {
+          if (commentFilesInput && commentFilesInput.files && commentFilesInput.files.length) {
+            const cid = added?.id;
+            if (cid) {
+              const authorId = myUserId;
+              await uploadAndRecordCommentFiles({ commentId: cid, authorId, files: Array.from(commentFilesInput.files) });
+            }
+            // Clear selected files
+            commentFilesInput.value = null;
+          }
+        } catch (fupe) {
+          // Non-fatal: inform user but continue
+          if (commentMsg) commentMsg.textContent = `Posted (file upload failed: ${fupe?.message || String(fupe)})`;
+        }
 
         if (commentText) commentText.value = "";
         if (commentMsg) commentMsg.textContent = "Posted.";
@@ -841,6 +1091,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       postBody.style.whiteSpace = 'pre-wrap';
       postBody.style.lineHeight = '1.6';
       postContent.appendChild(postBody);
+      // Render author badge (if any) after the body is inserted
+      try { renderAuthorBadge(post, postAuthorProfile); } catch (e) { /* ignore */ }
     }
 
     // If current user is post author, show Edit/Delete controls

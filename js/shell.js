@@ -1,5 +1,6 @@
 // js/shell.js
-import { wireAuthButtons } from "./auth.js";
+import { wireAuthButtons, getSession } from "./auth.js";
+import { getSupabaseClient } from "./supabaseClient.js";
 import { ENABLE_ADS, ADS_PROVIDER, ADSENSE_CLIENT } from "./config.js";
 
 export default async function initShell() {
@@ -37,6 +38,7 @@ export default async function initShell() {
         <a id="headerBack" class="rounded-md border border-stroke px-3 py-2 text-sm text-slate-200 hover:bg-slate-800" href="./index.html" style="display:none;">← Back</a>
 
         <a id="homeLink" href="./index.html" class="rounded-md border border-stroke px-3 py-2 text-sm text-slate-200 hover:bg-slate-800">Home</a>
+        <a id="accountHeaderLink" href="./account.html" class="rounded-md border border-stroke px-3 py-2 text-sm text-slate-200 hover:bg-slate-800" style="display:none;">Account</a>
 
         <a id="loginLink" href="./login.html" class="rounded-md bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Log in</a>
         <a id="registerLink" href="./signup.html" class="rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800">Register</a>
@@ -105,9 +107,41 @@ export default async function initShell() {
   // Wire auth UI
   try {
     await wireAuthButtons();
+    // Badge/counting removed: no periodic new-posts count script is started.
   } catch (e) {
     // ignore
     console.error("wireAuthButtons failed:", e);
+  }
+
+  // Show/hide "Your threads" links based on auth state
+  async function updateYourThreadsVisibility() {
+    try {
+      const session = await getSession();
+      const visible = !!(session && session.user && session.user.id);
+      // Sidebar links
+      const anchors = Array.from(document.querySelectorAll('a[href="your-threads.html"]'));
+      for (const a of anchors) {
+        a.style.display = visible ? '' : 'none';
+      }
+      // Header link added in index.html
+      const hdr = document.getElementById('yourThreadsHeaderLink');
+      if (hdr) hdr.style.display = visible ? '' : 'none';
+      // Header account link (show only to signed-in users)
+      const acc = document.getElementById('accountHeaderLink');
+      if (acc) acc.style.display = visible ? '' : 'none';
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  try {
+    await updateYourThreadsVisibility();
+    const sb = getSupabaseClient();
+    try { sb.auth.onAuthStateChange(() => updateYourThreadsVisibility()); } catch {
+      // ignore
+    }
+  } catch (e) {
+    // ignore
   }
 
   // Header back behavior: allow pages (like post.js) to set data-back-href

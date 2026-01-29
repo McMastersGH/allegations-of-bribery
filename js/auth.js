@@ -204,8 +204,17 @@ function applyAuthUI({ session, loginLink, registerLink, logoutBtn, userBadge, u
     "Account";
 
   if (userMenuBtn) {
-    userMenuBtn.textContent = display;
-    userMenuBtn.title = user?.email || display;
+    // Render the display name as a link to the account page while preserving
+    // the surrounding element so existing dropdown wiring works.
+    // Create an anchor and insert it as the only child to avoid HTML-escaping issues.
+    userMenuBtn.innerHTML = "";
+    const a = document.createElement("a");
+    a.href = "./account.html";
+    a.textContent = display;
+    a.style.color = "inherit";
+    a.style.textDecoration = "none";
+    a.title = user?.email || display;
+    userMenuBtn.appendChild(a);
   }
 }
 

@@ -48,3 +48,45 @@ export async function uploadAndRecordFiles({ postId, authorId, files }) {
 
   return results;
 }
+
+export async function uploadAndRecordCommentFiles({ commentId, authorId, files }) {
+  const sb = getSupabaseClient();
+  const bucket = POST_UPLOADS_BUCKET;
+  try {
+    const ok = await bucketExists(bucket);
+    if (!ok) throw new Error(`Storage bucket "${bucket}" not found. Create it in Supabase Storage or change the bucket name in js/config.js`);
+  } catch (e) {
+    throw e;
+  }
+
+  const results = [];
+  for (const file of files) {
+    if (!authorId) throw new Error('Missing authorId for file upload. Ensure the user is signed in.');
+
+    let safeName = (file.name || "").replace(/[^\\w.-]+/g, "_");
+    if (!safeName || /^\.+$/.test(safeName)) {
+      safeName = `file_${Date.now()}`;
+    }
+    const storagePath = `${authorId}/comments/${commentId}/${Date.now()}_${safeName}`;
+
+    await uploadPostFile({ bucket, path: storagePath, file });
+
+    const { data, error } = await sb
+      .from("comment_files")
+      .insert([{
+        comment_id: commentId,
+        author_id: authorId,
+        bucket,
+        object_path: storagePath,
+        original_name: file.name,
+        mime_type: file.type || null
+      }])
+      .select("id, bucket, object_path, original_name")
+      .single();
+
+    if (error) throw error;
+    results.push(data);
+  }
+
+  return results;
+}

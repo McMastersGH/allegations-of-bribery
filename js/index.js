@@ -37,27 +37,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           iso = iso + 'Z';
         }
       }
-      try {
-        const d = new Date(iso);
-        // Use SITE_TIMEZONE if present for consistent site-wide display
-        try {
-          // Import SITE_TIMEZONE lazily to avoid top-level changes here
-          const { SITE_TIMEZONE } = await import('./config.js');
-          if (SITE_TIMEZONE) {
-            const opts = { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' };
-            const inZone = new Intl.DateTimeFormat(undefined, { ...opts, timeZone: SITE_TIMEZONE }).format(d);
-            const utcIso = d.toISOString().replace('T', ' ').replace('Z', '');
-            return `${inZone} (${SITE_TIMEZONE} ${utcIso})`;
-          }
-        } catch (e) {
-          // fallthrough to local
-        }
-        const local = d.toLocaleString();
-        const utcIso = d.toISOString().replace('T', ' ').replace('Z', '');
-        return `${local} (UTC ${utcIso})`;
-      } catch {
-        return iso;
-      }
+      const d = new Date(iso);
+      const local = d.toLocaleString();
+      const utcIso = d.toISOString().replace('T', ' ').replace('Z', '');
+      return `${local} (UTC ${utcIso})`;
     } catch {
       return iso;
     }
@@ -77,14 +60,34 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     for (const p of posts) {
       const el = document.createElement("div");
-      el.className = "item";
       el.innerHTML = `
-      <h3 style="margin:0 0 6px 0;">
-        <a href="./post.html?id=${encodeURIComponent(p.id)}">${escapeHtml(p.title)}</a>
-      </h3>
-      <div class="muted">${escapeHtml(fmtDate(p.created_at))}</div>
+      <a href="./post.html?id=${encodeURIComponent(p.id)}" class="block rounded-lg border border-stroke bg-panel p-4 mb-3 transition hover:bg-slate-800" data-post-id="${encodeURIComponent(p.id)}">
+        <div class="flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <div class="truncate text-sm font-semibold text-slate-200">${escapeHtml(p.title)}</div>
+            <div class="mt-1 text-xs text-slate-500">${escapeHtml(fmtDate(p.created_at))}${p.forum_slug ? ` • ${escapeHtml(p.forum_slug.replace(/-/g, ' '))}` : ''}</div>
+          </div>
+          <div class="shrink-0 text-xs text-slate-500">Loading…</div>
+        </div>
+      </a>
     `;
       postsList.appendChild(el);
+
+      // Fetch comments count per post and update the card (small N so N+1 acceptable)
+      (async () => {
+        try {
+          const { listComments } = await import('./blogApi.js');
+          const comments = await listComments(p.id);
+          const count = Array.isArray(comments) ? comments.length : 0;
+          const anchor = postsList.querySelector(`a[data-post-id="${encodeURIComponent(p.id)}"]`);
+          if (anchor) {
+            const right = anchor.querySelector('.shrink-0');
+            if (right) right.innerHTML = `${count} comments`;
+          }
+        } catch (e) {
+          // ignore per-post failures
+        }
+      })();
     }
   }
 

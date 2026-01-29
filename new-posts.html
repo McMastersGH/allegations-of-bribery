@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>New Posts — Allegations of Bribery</title>
+
+  <link rel="icon" href="./favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./css/styles.css" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            panel: "#111827",
+            panel2: "#0b0e13",
+            stroke: "#1f2933",
+            page: "#0f1216"
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-page text-slate-200 antialiased">
+  <div id="siteHeader"></div>
+
+  <main class="mx-auto max-w-6xl px-4 py-6 space-y-5">
+    <div class="rounded-lg border border-stroke bg-panel p-5">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-xl font-semibold">New posts</h1>
+          <p class="mt-1 text-sm text-slate-400">Recent threads across all forums.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <input id="searchInput" placeholder="Search titles or bodies" class="rounded-md bg-slate-900 px-3 py-2 text-sm text-slate-200" />
+          <button id="refreshBtn" class="rounded-md bg-slate-800 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">Refresh</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="rounded-lg border border-stroke bg-panel2 p-5">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="text-sm font-semibold">Recent Threads</h2>
+        <div id="status" class="text-xs text-slate-500"></div>
+      </div>
+
+      <div id="emptyState" class="mt-4 text-sm text-slate-400" style="display:none;">No posts found.</div>
+      <div id="postsList" class="mt-4 divide-y divide-stroke"></div>
+    </div>
+
+    <footer class="text-xs text-slate-500">© <span id="year"></span> Allegations of Bribery</footer>
+  </main>
+
+  <script type="module">
+    import initShell from "./js/shell.js";
+    await initShell();
+  </script>
+
+  <script type="module">
+    // Ensure login link returns to this page
+    import { getSession } from "./js/auth.js";
+    try {
+      const loginLink = document.getElementById("loginLink");
+      if (loginLink) {
+        const next = encodeURIComponent(window.location.pathname + window.location.search);
+        loginLink.href = `./login.html?next=${next}`;
+      }
+    } catch {
+      // ignore
+    }
+
+    // Show header back button pointing to index
+    const headerBack = document.getElementById("headerBack");
+    if (headerBack) {
+      headerBack.setAttribute("data-back-href", "./index.html");
+      headerBack.style.display = "inline-flex";
+    }
+  </script>
+
+  <script type="module" src="js/index.js"></script>
+</body>
+</html>

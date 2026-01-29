@@ -6,10 +6,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Write — Allegations of Bribery</title>
 
-  <!-- Tailwind (matches index look) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
   <!-- Keep your existing site styles (buttons, inputs, etc.) -->
+  <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="./css/styles.css" />
 
   <script>
@@ -71,9 +69,19 @@
         <p class="mt-2 text-xs text-slate-500">Tip: keep it factual; add sources where possible.</p>
       </div>
 
-      <div class="mt-4">
-        <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">Attachments</label>
-        <input id="files" class="mt-2 w-full rounded-md border border-stroke bg-panel px-3 py-2 text-sm text-slate-200" type="file" multiple />
+      <div id="composeAttachments" class="mt-4">
+        <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">Attachments — documents & images</label>
+        <div class="attachment-box mt-2">
+          <!-- Hidden native input kept for form handling; custom controls provide consistent UI -->
+          <input id="files" aria-describedby="filesHelp" accept=".pdf,.doc,.docx,.txt,image/*" class="input native-file-input" type="file" multiple />
+
+          <div class="custom-file-control">
+            <button id="filesBtn" type="button" class="btn">Browse files</button>
+            <span id="filesLabel" class="small muted" style="margin-left:10px;">No files selected.</span>
+          </div>
+
+          <p id="filesHelp" class="mt-2 text-xs text-slate-500">Use this box to upload supporting documents or images (PDF, DOCX, JPG, PNG). Multiple files are allowed.</p>
+        </div>
       </div>
 
       <div class="mt-5 flex items-center gap-3">

@@ -330,6 +330,99 @@ export async function listPostFiles(postId) {
   return data || [];
 }
 
+export async function listCommentFiles(commentId) {
+  const sb = getSupabaseClient();
+  const { data, error } = await sb
+    .from("comment_files")
+    .select("id, bucket, object_path, original_name, mime_type, created_at")
+    .eq("comment_id", normalizeId(commentId))
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Fetch threads authored by a user, including comment counts, unviewed counts,
+ * and recent comment excerpts via a single RPC for performance.
+ */
+export async function getAuthorThreadsWithUnviewed(userId) {
+  const sb = getSupabaseClient();
+  const { data, error } = await sb.rpc('get_author_threads_unviewed', { p_user: userId });
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Mark a post as seen for a user (upsert into post_views.last_seen_at = now)
+ */
+export async function markPostSeen(userId, postId) {
+  const sb = getSupabaseClient();
+  if (!userId) throw new Error('markPostSeen: userId required');
+  if (!postId) throw new Error('markPostSeen: postId required');
+  const { error } = await sb.from('post_views').upsert(
+    { user_id: userId, post_id: postId, last_seen_at: new Date().toISOString() },
+    { onConflict: 'user_id,post_id' }
+  );
+  if (error) throw error;
+  return { ok: true };
+}
+
+/**
+ * List posts that have no comments (unanswered threads).
+ * @param {object} opts
+ * @param {number} opts.limit
+ * @param {string|null} opts.forum_slug
+ */
+export async function listUnansweredPosts({ limit = 50, forum_slug = null } = {}) {
+  const sb = getSupabaseClient();
+
+  let q = sb
+    .from('posts')
+    // include a small comments relationship so we can filter client-side
+    .select('id, title, created_at, author_id, display_name, forum_slug, is_anonymous, comments(id)')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (forum_slug) q = q.eq('forum_slug', forum_slug);
+  q = q.eq('status', 'published');
+
+  const { data, error } = await q;
+  if (error) throw error;
+
+  const rowsRaw = data || [];
+
+  // Keep only rows with zero comments
+  const unanswered = rowsRaw.filter((r) => !Array.isArray(r.comments) || r.comments.length === 0);
+
+  // Back-compat: ensure display_name exists similar to listPosts
+  const missingAuthorIds = [...new Set(
+    unanswered.filter((p) => !p?.display_name).map((p) => p.author_id).filter(Boolean)
+  )];
+
+  let authorsMap = {};
+  if (missingAuthorIds.length) {
+    const { data: authorsData, error: authorsErr } = await sb
+      .from('authors')
+      .select('user_id, display_name')
+      .in('user_id', missingAuthorIds);
+    if (!authorsErr && Array.isArray(authorsData)) {
+      authorsMap = Object.fromEntries((authorsData || []).map((a) => [a.user_id, a.display_name]));
+    }
+  }
+
+  const rows = unanswered.map((p) => ({
+    id: p.id,
+    title: p.title,
+    created_at: p.created_at,
+    author_id: p.author_id,
+    display_name: p?.is_anonymous ? 'Anonymous' : (p?.display_name || authorsMap[p.author_id] || 'Member'),
+    forum_slug: p.forum_slug,
+  }));
+
+  return rows;
+}
+
 /**
  * Delete a post file record and its storage object.
  * @param {string} fileId
@@ -368,6 +461,44 @@ export async function deletePostFile(fileId) {
   return data;
 }
 
+/**
+ * Delete a comment file record and its storage object.
+ * @param {string} fileId
+ */
+export async function deleteCommentFile(fileId) {
+  const sb = getSupabaseClient();
+  if (!fileId) throw new Error("deleteCommentFile: fileId is required");
+
+  // Lookup the DB row first
+  const { data: row, error: rowErr } = await sb
+    .from('comment_files')
+    .select('id, bucket, object_path')
+    .eq('id', normalizeId(fileId))
+    .maybeSingle();
+  if (rowErr) throw rowErr;
+  if (!row) throw new Error('comment file not found');
+
+  // Attempt to remove the storage object (best-effort)
+  try {
+    const { error: remErr } = await sb.storage.from(row.bucket).remove([row.object_path]);
+    if (remErr) throw remErr;
+  } catch (e) {
+    // If storage delete fails, surface the error
+    throw e;
+  }
+
+  // Delete DB record
+  const { data, error } = await sb
+    .from('comment_files')
+    .delete()
+    .eq('id', normalizeId(fileId))
+    .select('id')
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 // ---------------------------------------------------------------------------
 // Compatibility helpers for write.js (author gating + thread creation)
 // ---------------------------------------------------------------------------
@@ -378,9 +509,12 @@ export async function deletePostFile(fileId) {
  */
 export async function getAuthorProfile(userId) {
   const sb = getSupabaseClient();
+  // Select all columns so deployments that extended `authors` (credentials,
+  // union_affiliation, bio, etc.) will have those fields available to the
+  // client without requiring further migrations here.
   const { data, error } = await sb
     .from("authors")
-    .select("user_id, display_name, approved, is_anonymous, timezone")
+    .select("*")
     .eq("user_id", normalizeId(userId))
     .maybeSingle();
 

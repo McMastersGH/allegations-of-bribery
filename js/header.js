@@ -85,6 +85,8 @@ export async function wireHeaderUserMenu({
 
   // Wire dropdown
   userMenuBtn.addEventListener("click", (e) => {
+    // If the click target was an anchor (account link), allow navigation.
+    if (e.target.closest && e.target.closest("a")) return;
     e.preventDefault();
     toggleMenu();
   });

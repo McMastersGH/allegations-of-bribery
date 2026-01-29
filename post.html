@@ -45,6 +45,9 @@
 
       <div id="postContent" class="prose" style="margin-top:14px;"></div>
 
+      <!-- Author badge (populated by js/post.js). Hidden for anonymous posts -->
+      <div id="authorBadge" class="card author-badge" style="margin-top:14px; display:none;"></div>
+
       <!-- Post footer ad placeholder -->
       <div id="postFooterAd" class="card" style="margin-top:14px;">
         <div class="text-xs font-semibold uppercase tracking-wider text-slate-400">Sponsored</div>
@@ -53,14 +56,14 @@
     </section>
 
     <section class="card" style="margin-top:14px;">
-      <h3>Attachments</h3>
-      <div id="attachments" class="list" style="margin-top:10px;"></div>
+      <h3>Attachments — documents & images</h3>
+      <p id="attachmentsHelp" class="small muted" style="margin-top:6px;">Files shown below are supporting documents or images uploaded by the author (PDF, DOCX, JPG, PNG).</p>
+      <div id="attachments" aria-describedby="attachmentsHelp" class="list" style="margin-top:10px;"></div>
     </section>
 
     <section class="card" style="margin-top:14px;">
       <div class="row" style="justify-content:space-between; align-items:center;">
         <h3>Comments</h3>
-        <div id="commentGate" class="muted small"></div>
       </div>
 
       <!-- Anonymity toggle panel (post.js shows/hides this) -->
@@ -74,14 +77,15 @@
         </label>
         <p id="commentAnonStatus" class="small muted" style="margin-top:8px;"></p>
       </div>
+      <div id="commentFormWrap" class="card" style="margin-top:12px;">
+        <label class="label" for="commentText">Add a comment</label>
+        <textarea id="commentText" spellcheck="true" class="textarea" rows="4" placeholder="Write a comment..." disabled></textarea>
 
-      <label class="label" for="commentText">Add a comment</label>
-      <textarea id="commentText" spellcheck="true" class="textarea" rows="4" placeholder="Write a comment..." disabled></textarea>
-
-      <div class="row gap" style="margin-top:10px;">
-        <button id="commentBtn" class="btn" type="button" disabled>Post comment</button>
-        <button id="checkCommentBtn" class="rounded-md border border-stroke px-3 py-2 text-sm text-slate-200" type="button">Check spelling</button>
-        <div id="commentMsg" class="muted small" style="align-self:center;"></div>
+        <div class="row gap" style="margin-top:10px;">
+          <button id="commentBtn" class="btn" type="button" disabled>Post comment</button>
+          <button id="checkCommentBtn" class="rounded-md border border-stroke px-3 py-2 text-sm text-slate-200" type="button">Check spelling</button>
+          <div id="commentMsg" class="muted small" style="align-self:center;"></div>
+        </div>
       </div>
 
       <div id="comments" class="list" style="margin-top:14px;"></div>

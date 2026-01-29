@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <title>Account — Allegations of Bribery</title>
+
+  <link rel="icon" href="./favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./css/styles.css" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { panel: "#111827", panel2: "#0b0e13", stroke: "#1f2933", page: "#0f1216" }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-page text-slate-200 antialiased">
+
+  <div id="siteHeader"></div>
+
+  <main class="mx-auto max-w-6xl px-4 py-6">
+    <section class="card">
+      <h2>Account</h2>
+      <p id="msg" class="muted" aria-live="polite"></p>
+      <p class="muted" style="margin-top:6px;">Note: any editable fields left blank will not appear on your public info badge shown under your posts and comments.</p>
+
+      <form id="accountForm">
+        <label class="label" for="email">Email</label>
+        <input id="email" class="input" type="email" disabled />
+
+        <label class="label" for="displayName">Display name</label>
+        <input id="displayName" class="input" type="text" placeholder="Your display name" />
+
+        <label class="label" for="isAnonymous">Post anonymously</label>
+        <div class="row gap items-center">
+          <input id="isAnonymous" type="checkbox" />
+          <span class="muted">When checked, new posts/comments will show as anonymous (subject to moderation).</span>
+        </div>
+
+        <label class="label" for="credentials">Credentials / Title</label>
+        <input id="credentials" class="input" type="text" placeholder="e.g. PhD, RN, Senior Reporter" />
+
+        <label class="label" for="unionAffiliation">Union affiliation</label>
+        <input id="unionAffiliation" class="input" type="text" placeholder="e.g. Writers Guild" />
+
+        <label class="label" for="organization">Organization / Employer</label>
+        <input id="organization" class="input" type="text" placeholder="e.g. Example News" />
+
+        <label class="label" for="bio">Short bio / about</label>
+        <textarea id="bio" class="input" rows="4" placeholder="A short bio or affiliation information."></textarea>
+
+        <label class="label" for="approved">Author approved</label>
+        <input id="approved" class="input" type="text" disabled />
+
+        <div class="row gap" style="margin-top:12px;">
+          <button id="saveBtn" class="btn primary" type="submit">Save changes</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script type="module">
+    import initShell from "./js/shell.js";
+    await initShell();
+  </script>
+
+  <!-- Normalize auth UI toggling (shell already wires auth buttons but keep parity) -->
+  <script type="module">
+    import { wireAuthButtons } from "./js/auth.js";
+    wireAuthButtons();
+  </script>
+
+  <script type="module" src="./js/account.js"></script>
+</body>
+</html>

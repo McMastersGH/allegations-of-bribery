@@ -22,6 +22,24 @@ a:hover{text-decoration:underline}
 .brand{display:flex;align-items:center;gap:10px}
 .brand img{width:38px;height:38px;object-fit:contain}
 .brand .title{font-weight:700;letter-spacing:.2px}
+
+/* Header tweaks to prevent long titles pushing action buttons off-screen on small devices */
+header .text-lg {
+  max-width: 160px;
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Ensure header action buttons shrink on small screens */
+@media (max-width: 480px) {
+  header .px-4 { padding-left: 8px; padding-right: 8px; }
+  a#loginLink, a#registerLink, .rounded-md { padding-left: 8px !important; padding-right: 8px !important; }
+  .rounded-md { font-size: 0.9rem; }
+  /* allow right-side controls to wrap instead of overflow */
+  header .mx-auto { flex-wrap: wrap; gap: 6px; }
+}
 .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .btn{
   border:1px solid var(--line);background:var(--panel);
@@ -352,4 +370,222 @@ img, video, iframe { max-width: 100%; height: auto; display: block; }
 @media (max-width:640px){
   .file-modal{border-radius:8px;padding:8px}
   .file-modal-iframe{height:82vh}
+}
+
+/* Comments: make each comment visually distinct for readability */
+#comments .item {
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.008));
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+#comments .item .muted {
+  color: var(--muted);
+}
+
+/* Author badge specific background to make info stand out slightly */
+.author-badge {
+  background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.02));
+  border-color: rgba(255,255,255,0.06);
+  padding: 12px;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: normal;
+  white-space: normal;
+  position: relative;
+  z-index: 1;
+}
+
+/* Attachments: center the list and give each attachment a bordered card */
+#attachments {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+#attachments .item {
+  width: 100%;
+  max-width: 760px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.008));
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+#attachments .item a { color: var(--accent); }
+
+/* Center file input and upload controls inside attachment area */
+#attachments input[type="file"],
+#attachments .input { display: block; margin-left: auto; margin-right: auto; }
+
+/* Make buttons visually separated and centered */
+#attachments .item .btn { margin: 6px 6px 0 6px; }
+
+/* Ensure preview blocks and metadata align center */
+#attachments .item .muted { color: var(--muted); text-align: center; }
+
+/* Compose (write) page attachments box - center and border the input/helper */
+#composeAttachments {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#composeAttachments #files {
+  width: 100%;
+  max-width: 760px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.008));
+}
+
+#composeAttachments #filesHelp { max-width: 760px; text-align: center; }
+
+/* Attachment box wrapper to ensure consistent card appearance */
+.attachment-box {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.attachment-box input[type="file"] {
+  width: 100%;
+  max-width: 760px;
+  background: transparent;
+  border: none; /* outer wrapper supplies border */
+  padding: 8px 6px;
+}
+
+/* Style native file selector button for modern browsers */
+.attachment-box input[type="file"]::file-selector-button,
+.attachment-box input[type="file"]::-webkit-file-upload-button {
+  margin: 0 6px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* Keep the filename text centered */
+.attachment-box input[type="file"]::-webkit-file-upload-text,
+.attachment-box input[type="file"]::file-selector-button {
+  text-align: center;
+}
+
+/* Hide native input visually but keep it accessible to screen readers */
+.native-file-input {
+  position: absolute !important;
+  left: -9999px !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(1px, 1px, 1px, 1px) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  padding: 0 !important;
+}
+
+/* Custom file control styling */
+.custom-file-control { display:flex; align-items:center; justify-content:center; gap:8px; }
+.custom-file-control .btn { padding: 8px 12px; border-radius: 10px; }
+.custom-file-control .small.muted { color: var(--muted); }
+
+/* Ensure the main authorBadge gets the same treatment even if placed outside comment list */
+#authorBadge.author-badge {
+  padding: 12px;
+}
+
+/* Right-align badges inside comments */
+#comments .item { display: flex; flex-direction: column; }
+#comments .item .author-badge { align-self: flex-end; max-width: 40%; text-align: right; }
+/* Ensure badges sit inside their comment card and don't overlap neighbors */
+#comments .item .author-badge { margin-top: 8px; }
+
+/* Main post badge: float right so it sits to the right of post content */
+#authorBadge.author-badge { float: right; max-width: 38%; text-align: right; margin-left: 12px; }
+
+/* Ensure elements following a floated badge clear it so ads or footer cards don't overlap */
+#postFooterAd { clear: both; }
+.card + .card { clear: both; }
+
+/* On narrow screens do not float the badge (stack below content) */
+@media (max-width: 900px) {
+  #authorBadge.author-badge { float: none; max-width: 100%; text-align: left; margin-left: 0; }
+  /* Make comment badges stack and wrap cleanly on narrow screens */
+  #comments .item .author-badge { align-self: stretch; max-width: 100%; width: 100%; text-align: left; margin-left: 0; }
+  #comments .item.reply .author-badge { max-width: 100%; width: 100%; }
+  /* Give reply badges a little separation so they can't visually collide with parent content */
+  #comments .item.reply .author-badge { margin-top: 6px; padding-left: 8px; }
+}
+
+/* Ensure header actions (login/register/display name/logout) wrap on narrow viewports */
+@media (max-width: 520px) {
+  header .mx-auto { flex-wrap: wrap; gap: 6px; }
+  header .flex.items-center.gap-3 { flex-wrap: wrap; }
+  /* Truncate the display name in the header so it doesn't push buttons off-screen */
+  #userMenuBtn { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
+  /* Reduce padding on header action buttons to save horizontal space */
+  a#loginLink, a#registerLink, #logoutBtn, .rounded-md {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+}
+
+/* Strong mobile override: force badges to full width on very narrow viewports */
+@media (max-width: 480px) {
+  #comments .item .author-badge,
+  #authorBadge.author-badge {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    align-self: stretch !important;
+    text-align: left !important;
+    margin-left: 0 !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  /* Reduce left indent on deep replies so content remains readable */
+  #comments .item { margin-left: 0 !important; }
+  #comments .item .item { margin-left: 0 !important; }
+}
+
+/* Replies styling: slightly lighter background and left accent to distinguish */
+.reply { background: linear-gradient(180deg, rgba(255,255,255,0.008), rgba(255,255,255,0.004)); border-color: rgba(255,255,255,0.02); }
+.reply { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.01); }
+.reply { border-left: 3px solid rgba(99,102,241,0.08); }
+
+/* Slightly smaller badge for replies */
+#comments .item.reply .author-badge { max-width: 34%; font-size: 0.95rem; }
+
+/* Replies toggle and nested children */
+.replies-toggle {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.92em;
+  padding: 0;
+}
+.replies-toggle:focus { outline: none; }
+
+.comment-children {
+  margin-left: 12px;
+  border-left: 2px solid rgba(255,255,255,0.02);
+  padding-left: 12px;
 }

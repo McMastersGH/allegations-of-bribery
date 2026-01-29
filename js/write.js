@@ -168,4 +168,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Approved -> enable posting
   disableForm(false);
+
+  // Wire custom file picker UI (keeps native #files input for upload)
+  const filesInput = $("files");
+  const filesBtn = $("filesBtn");
+  const filesLabel = $("filesLabel");
+  if (filesBtn && filesInput && filesLabel) {
+    filesBtn.addEventListener('click', () => filesInput.click());
+    filesInput.addEventListener('change', () => {
+      const names = filesInput.files ? Array.from(filesInput.files).map(f => f.name) : [];
+      filesLabel.textContent = names.length ? names.join(', ') : 'No files selected.';
+    });
+  }
 });

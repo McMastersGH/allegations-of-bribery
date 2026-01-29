@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Your Threads — Allegations of Bribery</title>
+
+  <link rel="icon" href="./favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./css/styles.css" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            panel: "#111827",
+            panel2: "#0b0e13",
+            stroke: "#1f2933",
+            page: "#0f1216"
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-page text-slate-200 antialiased">
+  <div id="siteHeader"></div>
+
+  <main class="mx-auto max-w-6xl px-4 py-6 space-y-5">
+    <div class="rounded-lg border border-stroke bg-panel p-5">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-xl font-semibold">Your threads</h1>
+          <p class="mt-1 text-sm text-slate-400">Threads you started, ordered by unviewed comments.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="rounded-lg border border-stroke bg-panel2 p-5">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="text-sm font-semibold">Your Threads</h2>
+        <div id="status" class="text-xs text-slate-500"></div>
+      </div>
+
+      <div id="emptyState" class="mt-4 text-sm text-slate-400" style="display:none;">No threads found.</div>
+      <div id="threadsList" class="mt-4 divide-y divide-stroke"></div>
+    </div>
+
+    <footer class="text-xs text-slate-500">© <span id="year"></span> Allegations of Bribery</footer>
+  </main>
+
+  <script type="module">
+    import initShell from "./js/shell.js";
+    await initShell();
+  </script>
+
+  <script type="module" src="js/yourThreads.js"></script>
+</body>
+</html>
