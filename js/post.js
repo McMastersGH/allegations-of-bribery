@@ -1449,6 +1449,22 @@ document.addEventListener("DOMContentLoaded", async () => {
           textarea.style.minHeight = "160px";
           textarea.value = post.body || "";
 
+          // Also allow editing the title inline. Replace the visible title
+          // element with a text input so authors can change the thread title.
+          let titleInput = null;
+          try {
+            const titleEl = document.getElementById('postTitle');
+            if (titleEl) {
+              titleInput = document.createElement('input');
+              titleInput.className = 'input';
+              titleInput.style.width = '100%';
+              titleInput.style.marginBottom = '8px';
+              titleInput.value = post.title || '';
+              titleInput.id = 'postTitleInput';
+              titleEl.replaceWith(titleInput);
+            }
+          } catch (e) {}
+
           bodyEl.replaceWith(textarea);
           postControls.style.display = "none";
 
@@ -1481,7 +1497,15 @@ document.addEventListener("DOMContentLoaded", async () => {
           saveBtn.onclick = async () => {
             try {
               saveBtn.disabled = true;
-              await updatePost(post.id, { body: textarea.value || "" });
+              // Read title from inline input if present
+              const nextTitle = titleInput ? (titleInput.value || '').trim() : (post.title || '');
+              if (!nextTitle) {
+                saveBtn.disabled = false;
+                alert('Title cannot be empty.');
+                return;
+              }
+
+              await updatePost(post.id, { body: textarea.value || "", title: nextTitle });
 
               // If files were selected, upload them and record DB entries
               try {
