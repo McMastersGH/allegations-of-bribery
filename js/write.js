@@ -211,6 +211,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   } catch (e) {}
 
+  // Clear edit UI and redirect to index if the user signs out elsewhere
+  try {
+    window.addEventListener('signedOut', () => {
+      try {
+        disableForm(true);
+        setStatus('Signed out. Redirecting...');
+        window.location.href = './index.html';
+      } catch (e) {}
+    });
+  } catch (e) {}
+
   // Wire custom file picker UI (keeps native #files input for upload)
   const filesInput = $("files");
   const filesBtn = $("filesBtn");

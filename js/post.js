@@ -62,24 +62,139 @@ function createLinkifiedProse(text) {
     if (href.startsWith('www.')) href = 'http://' + href;
 
     try {
-      const a = document.createElement('a');
-      a.href = href;
-      a.textContent = url;
+      // If the link points to a known embeddable video (direct file or
+      // popular providers like YouTube/Vimeo), replace the anchor with
+      // an inline, lazy-loaded player that will autoplay (muted) when visible.
+      const videoExtRE = /\.(mp4|webm|ogg|ogv|mov)(?:[?#].*)?$/i;
+      const youTubeWatch = href.match(/(?:youtube\.com\/watch\?v=|youtube\.com\/.*[&?]v=)([A-Za-z0-9_-]{11})/i);
+      const youTuBeShort = href.match(/(?:youtu\.be\/)([A-Za-z0-9_-]{11})/i);
+      const vimeoMatch = href.match(/vimeo\.com\/(?:video\/)?(\d+)/i);
 
-      // Same-site links should open in the same tab; external links open a new tab.
-      try {
-        const parsed = new URL(a.href, window.location.href);
-        const host = (parsed.hostname || '').toLowerCase();
-        if (!host.endsWith('allegationsofbribery.com')) {
+      if (videoExtRE.test(href)) {
+        const vid = document.createElement('video');
+        vid.controls = true;
+        vid.className = 'linked-video prose-video';
+        vid.style.maxWidth = '100%';
+        vid.style.maxHeight = '480px';
+        vid.textContent = 'Your browser does not support the video tag.';
+        // Defer setting src until lazy load; use metadata preload to avoid eager download
+        vid.preload = 'metadata';
+        vid.__lazyLoad = () => { try { vid.src = href; observeMediaPlayback(vid); } catch (e) {} };
+        vid.__startVisible = true;
+        try { vid.__lazyLoad(); vid.__lazyLoaded = true; } catch (e) {}
+
+        // Add a small caption link underneath so users can open the video directly
+        const wrap = document.createElement('div');
+        wrap.appendChild(vid);
+        const caption = document.createElement('div');
+        caption.className = 'muted';
+        const a = document.createElement('a');
+        a.href = href;
+        a.textContent = url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        caption.appendChild(a);
+        wrap.appendChild(caption);
+        container.appendChild(wrap);
+      }
+      // YouTube embed
+      else if (youTubeWatch || youTuBeShort) {
+        const vidId = (youTubeWatch && youTubeWatch[1]) || (youTuBeShort && youTuBeShort[1]);
+        if (vidId) {
+          const embed = `https://www.youtube.com/embed/${vidId}?autoplay=1&mute=1&rel=0&modestbranding=1`;
+          const iframe = document.createElement('iframe');
+          iframe.width = '560';
+          iframe.height = '315';
+          iframe.frameBorder = '0';
+          iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
+          iframe.allowFullscreen = true;
+          iframe.className = 'linked-video-iframe';
+          iframe.style.maxWidth = '100%';
+          iframe.style.height = '360px';
+          iframe.__lazyLoad = () => { try { iframe.src = embed; } catch (e) {} };
+          iframe.__startVisible = true;
+          try { iframe.__lazyLoad(); iframe.__lazyLoaded = true; } catch (e) {}
+
+          const wrap = document.createElement('div');
+          wrap.appendChild(iframe);
+          const caption = document.createElement('div');
+          caption.className = 'muted';
+          const a = document.createElement('a');
+          a.href = href;
+          a.textContent = url;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          caption.appendChild(a);
+          wrap.appendChild(caption);
+          container.appendChild(wrap);
+        } else {
+          const a = document.createElement('a');
+          a.href = href;
+          a.textContent = url;
+          try {
+            const parsed = new URL(a.href, window.location.href);
+            const host = (parsed.hostname || '').toLowerCase();
+            if (!host.endsWith('allegationsofbribery.com')) {
+              a.target = '_blank';
+              a.rel = 'noopener noreferrer';
+            }
+          } catch (e) {
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+          }
+          container.appendChild(a);
+        }
+      }
+      // Vimeo embed
+      else if (vimeoMatch) {
+        const vidId = vimeoMatch[1];
+        const embed = `https://player.vimeo.com/video/${vidId}?autoplay=1&muted=1`;
+        const iframe = document.createElement('iframe');
+        iframe.width = '640';
+        iframe.height = '360';
+        iframe.frameBorder = '0';
+        iframe.allow = 'autoplay; fullscreen; picture-in-picture';
+        iframe.allowFullscreen = true;
+        iframe.className = 'linked-video-iframe';
+        iframe.style.maxWidth = '100%';
+        iframe.style.height = '360px';
+        iframe.__lazyLoad = () => { try { iframe.src = embed; } catch (e) {} };
+        iframe.__startVisible = true;
+        try { iframe.__lazyLoad(); iframe.__lazyLoaded = true; } catch (e) {}
+
+        const wrap = document.createElement('div');
+        wrap.appendChild(iframe);
+        const caption = document.createElement('div');
+        caption.className = 'muted';
+        const a = document.createElement('a');
+        a.href = href;
+        a.textContent = url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        caption.appendChild(a);
+        wrap.appendChild(caption);
+        container.appendChild(wrap);
+      }
+      else {
+        const a = document.createElement('a');
+        a.href = href;
+        a.textContent = url;
+
+        // Same-site links should open in the same tab; external links open a new tab.
+        try {
+          const parsed = new URL(a.href, window.location.href);
+          const host = (parsed.hostname || '').toLowerCase();
+          if (!host.endsWith('allegationsofbribery.com')) {
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+          }
+        } catch (e) {
           a.target = '_blank';
           a.rel = 'noopener noreferrer';
         }
-      } catch (e) {
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-      }
 
-      container.appendChild(a);
+        container.appendChild(a);
+      }
     } catch (e) {
       container.appendChild(document.createTextNode(url));
     }
@@ -137,6 +252,28 @@ function showFileModal(url, mime, opener) {
       img.alt = opener?.textContent || '';
       img.className = 'file-modal-image';
       content.appendChild(img);
+    }
+    // Video playback in modal
+    else if (mime && mime.startsWith('video/')) {
+      const video = document.createElement('video');
+      video.controls = true;
+      video.src = url;
+      video.className = 'file-modal-video';
+      video.style.maxWidth = '100%';
+      video.style.maxHeight = '80vh';
+      video.setAttribute('aria-label', 'Video preview');
+      content.appendChild(video);
+      try { observeMediaPlayback(video); video.play && video.play().catch(() => {}); } catch (e) {}
+    }
+    else if (mime && mime.startsWith('audio/')) {
+      const audio = document.createElement('audio');
+      audio.controls = true;
+      audio.src = url;
+      audio.className = 'file-modal-audio';
+      audio.style.maxWidth = '100%';
+      audio.setAttribute('aria-label', 'Audio preview');
+      content.appendChild(audio);
+      try { observeMediaPlayback(audio); audio.play && audio.play().catch(() => {}); } catch (e) {}
     } else if (mime === 'application/pdf') {
       const iframe = document.createElement('iframe');
       iframe.src = url;
@@ -170,6 +307,13 @@ function closeFileModal() {
   if (!__fileModal) return;
   try {
     const opener = __fileModal.opener;
+    // Pause any playing media in the modal before removing it
+    try {
+      const medias = __fileModal.content.querySelectorAll && __fileModal.content.querySelectorAll('video,audio');
+      if (medias && medias.length) {
+        medias.forEach(m => { try { m.pause && m.pause(); } catch (e) {} });
+      }
+    } catch (ee) {}
     __fileModal.overlay.remove();
     document.removeEventListener('keydown', __onFileModalKeydown);
     __fileModal = null;
@@ -177,6 +321,33 @@ function closeFileModal() {
   } catch (e) {
     __fileModal = null;
   }
+}
+
+// Media visibility helper: play when mostly in-view, pause otherwise.
+const __mediaObservers = new WeakMap();
+function observeMediaPlayback(el) {
+  try {
+    if (!el || !el.tagName) return;
+    const t = el.tagName.toLowerCase();
+    if (t !== 'video' && t !== 'audio') return;
+    if (__mediaObservers.has(el)) return;
+    const obs = new IntersectionObserver((entries) => {
+      for (const ent of entries) {
+        try {
+          if (ent.intersectionRatio >= 0.75) {
+            // Autoplay must be muted in many browsers; ensure muted before
+            // attempting to play. Users can unmute manually.
+            try { el.muted = true; } catch (e) {}
+            el.play && el.play().catch(() => {});
+          } else {
+            el.pause && el.pause();
+          }
+        } catch (e) {}
+      }
+    }, { threshold: [0.75] });
+    obs.observe(el);
+    __mediaObservers.set(el, obs);
+  } catch (e) {}
 }
 
 function fmtDate(iso, tzOverride) {
@@ -337,50 +508,57 @@ async function renderFiles(postId) {
       const controls = document.createElement('div');
       controls.style.marginTop = '8px';
 
-      if (!__isMobileDevice) {
-        const previewBtn = document.createElement('button');
-        previewBtn.className = 'btn btn-sm';
-        previewBtn.textContent = 'Preview in New Tab';
-        previewBtn.onclick = (e) => {
+      // Determine if this is media: we hide download/open controls for media
+      const _mime = (f.mime_type || '').toLowerCase();
+      const _isMedia = _mime.startsWith('video/') || _mime.startsWith('audio/');
+
+      if (!_isMedia) {
+        if (!__isMobileDevice) {
+          const previewBtn = document.createElement('button');
+          previewBtn.className = 'btn btn-sm';
+          previewBtn.textContent = 'Preview in New Tab';
+          previewBtn.onclick = (e) => {
+            e.preventDefault();
+            window.open(url, '_blank', 'noopener');
+          };
+          controls.appendChild(previewBtn);
+        }
+
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'btn btn-sm';
+        downloadBtn.style.marginLeft = '8px';
+        downloadBtn.textContent = 'Download';
+        downloadBtn.onclick = async (e) => {
           e.preventDefault();
-          window.open(url, '_blank', 'noopener');
+          try {
+            downloadBtn.disabled = true;
+            const prevText = downloadBtn.textContent;
+            downloadBtn.textContent = 'Downloading…';
+
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const blob = await resp.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = f.original_name || 'file';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(blobUrl);
+
+            downloadBtn.textContent = prevText;
+            downloadBtn.disabled = false;
+          } catch (err) {
+            downloadBtn.disabled = false;
+            downloadBtn.textContent = 'Download';
+            // fallback: open in new tab
+            window.open(url, '_blank', 'noopener');
+          }
         };
-        controls.appendChild(previewBtn);
+        controls.appendChild(downloadBtn);
       }
 
-      const downloadBtn = document.createElement('button');
-      downloadBtn.className = 'btn btn-sm';
-      downloadBtn.style.marginLeft = '8px';
-      downloadBtn.textContent = 'Download';
-      downloadBtn.onclick = async (e) => {
-        e.preventDefault();
-        try {
-          downloadBtn.disabled = true;
-          const prevText = downloadBtn.textContent;
-          downloadBtn.textContent = 'Downloading…';
-
-          const resp = await fetch(url);
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          const blob = await resp.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = f.original_name || 'file';
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(blobUrl);
-
-          downloadBtn.textContent = prevText;
-          downloadBtn.disabled = false;
-        } catch (err) {
-          downloadBtn.disabled = false;
-          downloadBtn.textContent = 'Download';
-          // fallback: open in new tab
-          window.open(url, '_blank', 'noopener');
-        }
-      };
-      controls.appendChild(downloadBtn);
       el.appendChild(controls);
 
     // Add preview area (shown by default) with a hide/show toggle
@@ -392,9 +570,18 @@ async function renderFiles(postId) {
     const makeToggle = (targetEl, showText = "Hide preview", hideText = "Show preview") => {
       const btn = document.createElement("button");
       btn.className = "btn btn-sm";
-      // Start previews hidden to avoid clutter; button shows 'Show preview'
-      try { targetEl.style.display = "none"; } catch (e) {}
-      btn.textContent = hideText;
+      // Start previews hidden by default. If the element sets
+      // `__startVisible = true`, leave it visible and set the
+      // button to the 'Hide preview' state immediately.
+      try {
+        if (targetEl && targetEl.__startVisible) {
+          targetEl.style.display = "block";
+          btn.textContent = showText;
+        } else {
+          targetEl.style.display = "none";
+          btn.textContent = hideText;
+        }
+      } catch (e) {}
       btn.style.marginTop = "6px";
       btn.onclick = () => {
         if (targetEl.style.display === "none") {
@@ -407,7 +594,25 @@ async function renderFiles(postId) {
           } catch (e) {}
           targetEl.style.display = "block";
           btn.textContent = showText;
+          // If the revealed element is audio/video, attach visibility observer,
+          // focus and attempt to play.
+          try {
+            const tn = (targetEl && targetEl.tagName || '').toLowerCase();
+            if (tn === 'video' || tn === 'audio') {
+              try { observeMediaPlayback(targetEl); } catch (e) {}
+              try { targetEl.tabIndex = 0; } catch (e) {}
+              try { targetEl.focus && targetEl.focus(); } catch (e) {}
+              try { targetEl.play && targetEl.play().catch(() => {}); } catch (e) {}
+            }
+          } catch (ee) {}
         } else {
+          // If media, pause when hiding
+          try {
+            const tn = (targetEl && targetEl.tagName || '').toLowerCase();
+            if (tn === 'video' || tn === 'audio') {
+              try { targetEl.pause && targetEl.pause(); } catch (e) {}
+            }
+          } catch (ee) {}
           targetEl.style.display = "none";
           btn.textContent = hideText;
         }
@@ -415,11 +620,28 @@ async function renderFiles(postId) {
       return btn;
     };
 
+    // Videos: create an inline, lazy-loaded preview so users can play directly
     // Do not create inline previews for images or PDFs to avoid mobile
     // browsers treating the resource as a download. Keep only the anchor
     // at the top which opens the file in a new tab.
-    if (mime.startsWith("image/") || mime === "application/pdf") {
-      // no inline preview
+    if (mime && mime.startsWith("video/")) {
+      const vid = document.createElement('video');
+      vid.controls = true;
+      vid.style.maxWidth = '100%';
+      vid.style.maxHeight = '480px';
+      vid.className = 'file-video';
+      vid.textContent = 'Your browser does not support the video tag.';
+      // Defer setting the src until user requests the preview (lazy load)
+      vid.__lazyLoad = () => { vid.src = url; try { observeMediaPlayback(vid); } catch (e) {} };
+      // Start visible so it can autoplay when in view without an extra click
+      vid.__startVisible = true;
+      // Fire lazy load immediately so observer is attached and src set
+      try { vid.__lazyLoad(); vid.__lazyLoaded = true; } catch (e) {}
+
+      previewWrap.appendChild(makeToggle(vid, 'Hide preview', 'Show preview'));
+      previewWrap.appendChild(vid);
+    } else if (mime && (mime.startsWith("image/") || mime === "application/pdf")) {
+      // no inline preview for images or pdfs
     }
 
     // Text preview: fetch first chunk and display truncated, with toggle
@@ -454,8 +676,8 @@ async function renderFiles(postId) {
       // nothing extra for unknown types
     }
 
-    // If author is editing the post, show delete control per attachment
-    if (isPostAuthor && editingPost) {
+    // If current user is the post author, show delete control per attachment
+    if (isPostAuthor) {
       const ctrl = document.createElement('div');
       ctrl.style.marginTop = '6px';
       const delBtn = document.createElement('button');
@@ -612,44 +834,65 @@ async function renderComments(post) {
           const ctrls = document.createElement('div');
           ctrls.style.marginTop = '6px';
 
-          if (!__isMobileDevice) {
-            const previewBtn = document.createElement('button');
-            previewBtn.className = 'btn btn-sm';
-            previewBtn.textContent = 'Preview';
-            previewBtn.onclick = (e) => { e.preventDefault(); showFileModal(url, (f.mime_type || '').toLowerCase(), previewBtn); };
-            ctrls.appendChild(previewBtn);
-          }
+          const _cmime = (f.mime_type || '').toLowerCase();
+          const _cisMedia = _cmime.startsWith('video/') || _cmime.startsWith('audio/');
 
-          const downloadBtn = document.createElement('button');
-          downloadBtn.className = 'btn btn-sm';
-          downloadBtn.style.marginLeft = '8px';
-          downloadBtn.textContent = 'Download';
-          downloadBtn.onclick = async (e) => {
-            e.preventDefault();
-            try {
-              downloadBtn.disabled = true;
-              const prev = downloadBtn.textContent;
-              downloadBtn.textContent = 'Downloading…';
-              const resp = await fetch(url);
-              if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-              const blob = await resp.blob();
-              const blobUrl = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = blobUrl;
-              a.download = f.original_name || 'file';
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-              URL.revokeObjectURL(blobUrl);
-              downloadBtn.textContent = prev;
-              downloadBtn.disabled = false;
-            } catch (err) {
-              downloadBtn.disabled = false;
-              downloadBtn.textContent = 'Download';
-              window.open(url, '_blank', 'noopener');
+          if (_cisMedia) {
+            // Inline media preview for comment attachments. No download/preview
+            // buttons are shown for audio/video — use the toggle to start/stop.
+            const mediaTag = _cmime.startsWith('video/') ? 'video' : 'audio';
+            const mediaEl = document.createElement(mediaTag);
+            mediaEl.controls = true;
+            mediaEl.style.maxWidth = '100%';
+            mediaEl.className = 'comment-file-media';
+            mediaEl.textContent = 'Your browser does not support this media type.';
+            mediaEl.__lazyLoad = () => { mediaEl.src = url; try { observeMediaPlayback(mediaEl); } catch (e) {} };
+            // Start visible so comment media can autoplay when in view
+            mediaEl.__startVisible = true;
+            try { mediaEl.__lazyLoad(); mediaEl.__lazyLoaded = true; } catch (e) {}
+
+            fileEl.appendChild(makeToggle(mediaEl, 'Hide preview', 'Show preview'));
+            fileEl.appendChild(mediaEl);
+          } else {
+            if (!__isMobileDevice) {
+              const previewBtn = document.createElement('button');
+              previewBtn.className = 'btn btn-sm';
+              previewBtn.textContent = 'Preview';
+              previewBtn.onclick = (e) => { e.preventDefault(); showFileModal(url, (f.mime_type || '').toLowerCase(), previewBtn); };
+              ctrls.appendChild(previewBtn);
             }
-          };
-          ctrls.appendChild(downloadBtn);
+
+            const downloadBtn = document.createElement('button');
+            downloadBtn.className = 'btn btn-sm';
+            downloadBtn.style.marginLeft = '8px';
+            downloadBtn.textContent = 'Download';
+            downloadBtn.onclick = async (e) => {
+              e.preventDefault();
+              try {
+                downloadBtn.disabled = true;
+                const prev = downloadBtn.textContent;
+                downloadBtn.textContent = 'Downloading…';
+                const resp = await fetch(url);
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const blob = await resp.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = f.original_name || 'file';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(blobUrl);
+                downloadBtn.textContent = prev;
+                downloadBtn.disabled = false;
+              } catch (err) {
+                downloadBtn.disabled = false;
+                downloadBtn.textContent = 'Download';
+                window.open(url, '_blank', 'noopener');
+              }
+            };
+            ctrls.appendChild(downloadBtn);
+          }
 
           if (canManage) {
             const delBtn = document.createElement('button');
@@ -942,6 +1185,8 @@ async function wireCommentForm(post) {
     if (wrap && !document.getElementById('commentFilesInput')) {
       commentFilesInput = document.createElement('input');
       commentFilesInput.type = 'file';
+      // Accept media (video/audio) in addition to images/docs
+      commentFilesInput.accept = '.pdf,.doc,.docx,.txt,image/*,video/*,audio/*';
       commentFilesInput.multiple = true;
       commentFilesInput.id = 'commentFilesInput';
       commentFilesInput.className = 'input';
@@ -1098,6 +1343,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   anonNoticeEl = document.getElementById("anonNotice");
 
   await wireAuthButtons({ loginLinkId: "loginLink", logoutBtnId: "logoutBtn" });
+
+  // Clear editing state when the user signs out so no edit UI remains visible
+  try {
+    window.addEventListener('signedOut', () => {
+      try {
+        editingPost = false;
+        // Disable any contentEditable elements
+        document.querySelectorAll('[contenteditable="true"]').forEach(el => {
+          try { el.contentEditable = 'false'; } catch (e) {}
+        });
+        // Re-render files/comments to remove author-only controls
+        const id = getId();
+        if (id) {
+          try { renderFiles(id).catch(() => {}); } catch (e) {}
+          try { renderComments({ id }).catch(() => {}); } catch (e) {}
+        }
+      } catch (e) {}
+    });
+  } catch (e) {}
 
   try {
     const id = getId();

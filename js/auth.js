@@ -99,6 +99,11 @@ export async function logout() {
   const sb = getSupabaseClient();
   const { error } = await sb.auth.signOut();
   if (error) return { ok: false, error: error.message };
+  try {
+    if (typeof window !== 'undefined' && window.dispatchEvent) {
+      window.dispatchEvent(new CustomEvent('signedOut'));
+    }
+  } catch (e) {}
   return { ok: true };
 }
 

@@ -117,4 +117,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadProfile();
   const form = document.getElementById("accountForm");
   if (form) form.addEventListener("submit", saveProfile);
+
+  // If the user signs out elsewhere, redirect away from this edit page
+  try {
+    window.addEventListener('signedOut', () => {
+      try {
+        // Defensive: stop interactions and navigate to index
+        const saveBtn = document.getElementById('saveBtn');
+        if (saveBtn) saveBtn.disabled = true;
+        window.location.href = './index.html';
+      } catch (e) {}
+    });
+  } catch (e) {}
 });
