@@ -496,13 +496,20 @@ async function renderFiles(postId) {
   }
 
   for (const f of files) {
-    const url = getPublicUrl(f.bucket, f.object_path);
+    const url = await getPublicUrl(f.bucket, f.object_path);
     const el = document.createElement("div");
     el.className = "item";
-    el.innerHTML = `
+    if (url) {
+      el.innerHTML = `
       <div><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(f.original_name)}</a></div>
       <div class="muted">${escapeHtml(f.mime_type || "file")} • ${escapeHtml(fmtDate(f.created_at))}</div>
     `;
+    } else {
+      el.innerHTML = `
+      <div>${escapeHtml(f.original_name)} <span class="muted">(unavailable)</span></div>
+      <div class="muted">${escapeHtml(f.mime_type || "file")} • ${escapeHtml(fmtDate(f.created_at))}</div>
+    `;
+    }
 
       // Add explicit preview/download controls so mobile users can choose.
       const controls = document.createElement('div');
@@ -519,7 +526,7 @@ async function renderFiles(postId) {
           previewBtn.textContent = 'Preview in New Tab';
           previewBtn.onclick = (e) => {
             e.preventDefault();
-            window.open(url, '_blank', 'noopener');
+            if (url) window.open(url, '_blank', 'noopener');
           };
           controls.appendChild(previewBtn);
         }
@@ -631,12 +638,20 @@ async function renderFiles(postId) {
       vid.style.maxHeight = '480px';
       vid.className = 'file-video';
       vid.textContent = 'Your browser does not support the video tag.';
-      // Defer setting the src until user requests the preview (lazy load)
-      vid.__lazyLoad = () => { vid.src = url; try { observeMediaPlayback(vid); } catch (e) {} };
-      // Start visible so it can autoplay when in view without an extra click
-      vid.__startVisible = true;
-      // Fire lazy load immediately so observer is attached and src set
-      try { vid.__lazyLoad(); vid.__lazyLoaded = true; } catch (e) {}
+
+      if (url) {
+        // Defer setting the src until user requests the preview (lazy load)
+        vid.__lazyLoad = () => { vid.src = url; try { observeMediaPlayback(vid); } catch (e) {} };
+        // Start visible so it can autoplay when in view without an extra click
+        vid.__startVisible = true;
+        // Fire lazy load immediately so observer is attached and src set
+        try { vid.__lazyLoad(); vid.__lazyLoaded = true; } catch (e) {}
+      } else {
+        const note = document.createElement('div');
+        note.className = 'muted';
+        note.textContent = 'Preview unavailable.';
+        previewWrap.appendChild(note);
+      }
 
       previewWrap.appendChild(makeToggle(vid, 'Hide preview', 'Show preview'));
       previewWrap.appendChild(vid);
@@ -825,11 +840,15 @@ async function renderComments(post) {
         filesWrap.className = 'comment-files';
 
         for (const f of commentFiles) {
-          const url = getPublicUrl(f.bucket, f.object_path);
+          const url = await getPublicUrl(f.bucket, f.object_path);
           const fileEl = document.createElement('div');
           fileEl.className = 'muted';
           fileEl.style.marginTop = '6px';
-          fileEl.innerHTML = `<div><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(f.original_name)}</a> • ${escapeHtml(fmtDate(f.created_at))}</div>`;
+          if (url) {
+            fileEl.innerHTML = `<div><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(f.original_name)}</a> • ${escapeHtml(fmtDate(f.created_at))}</div>`;
+          } else {
+            fileEl.innerHTML = `<div>${escapeHtml(f.original_name)} <span class="muted">(unavailable)</span> • ${escapeHtml(fmtDate(f.created_at))}</div>`;
+          }
 
           const ctrls = document.createElement('div');
           ctrls.style.marginTop = '6px';
@@ -846,13 +865,19 @@ async function renderComments(post) {
             mediaEl.style.maxWidth = '100%';
             mediaEl.className = 'comment-file-media';
             mediaEl.textContent = 'Your browser does not support this media type.';
-            mediaEl.__lazyLoad = () => { mediaEl.src = url; try { observeMediaPlayback(mediaEl); } catch (e) {} };
-            // Start visible so comment media can autoplay when in view
-            mediaEl.__startVisible = true;
-            try { mediaEl.__lazyLoad(); mediaEl.__lazyLoaded = true; } catch (e) {}
-
-            fileEl.appendChild(makeToggle(mediaEl, 'Hide preview', 'Show preview'));
-            fileEl.appendChild(mediaEl);
+            if (url) {
+              mediaEl.__lazyLoad = () => { mediaEl.src = url; try { observeMediaPlayback(mediaEl); } catch (e) {} };
+              // Start visible so comment media can autoplay when in view
+              mediaEl.__startVisible = true;
+              try { mediaEl.__lazyLoad(); mediaEl.__lazyLoaded = true; } catch (e) {}
+              fileEl.appendChild(makeToggle(mediaEl, 'Hide preview', 'Show preview'));
+              fileEl.appendChild(mediaEl);
+            } else {
+              const note = document.createElement('div');
+              note.className = 'muted';
+              note.textContent = 'Preview unavailable.';
+              fileEl.appendChild(note);
+            }
           } else {
             if (!__isMobileDevice) {
               const previewBtn = document.createElement('button');
@@ -1283,32 +1308,30 @@ async function wireCommentForm(post) {
   if (commentBtn) {
     commentBtn.onclick = async () => {
       try {
-        if (commentMsg) commentMsg.textContent = "Posting...";
-        const body = (commentText?.value || "").trim();
+        commentBtn.disabled = true;
+        if (commentMsg) commentMsg.textContent = 'Posting...';
+        const body = (commentText?.value || '').trim();
         if (!body) {
-          if (commentMsg) commentMsg.textContent = "Comment cannot be empty.";
+          alert('Comment cannot be empty.');
+          commentBtn.disabled = false;
           return;
         }
 
-        // Use current toggle position (UI) as source of truth
-        const status = await getMyAuthorStatus(); // { user_id, display_name, approved, is_anonymous } or null
-
+        const status = await getMyAuthorStatus();
         const isAnon = !!status?.is_anonymous;
         const displayName = status?.display_name || null;
         const myUserId = status?.user_id || null;
 
         const added = await addComment(post.id, body, displayName, isAnon, myUserId);
 
-        // If attachments selected, upload them after comment creation
         try {
           if (commentFilesInput && commentFilesInput.files && commentFilesInput.files.length) {
             const cid = added?.id;
             if (cid) {
-              const authorId = myUserId;
-              await uploadAndRecordCommentFiles({ commentId: cid, authorId, files: Array.from(commentFilesInput.files) });
+              await uploadAndRecordCommentFiles({ commentId: cid, authorId: myUserId, files: Array.from(commentFilesInput.files) });
             }
             // Clear selected files
-            commentFilesInput.value = null;
+            try { commentFilesInput.value = null; } catch (e) {}
           }
         } catch (fupe) {
           // Non-fatal: inform user but continue
@@ -1320,6 +1343,7 @@ async function wireCommentForm(post) {
         await renderComments(post);
       } catch (e) {
         if (commentMsg) commentMsg.textContent = `Error: ${e?.message || String(e)}`;
+        commentBtn.disabled = false;
       }
     };
   }

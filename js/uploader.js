@@ -23,7 +23,10 @@ export async function uploadAndRecordFiles({ postId, authorId, files }) {
       if (!safeName || /^\.+$/.test(safeName)) {
         safeName = `file_${Date.now()}`;
       }
-      const storagePath = `${authorId}/${postId}/${Date.now()}_${safeName}`;
+      // Avoid embedding the uploader's user id in object paths to reduce
+      // accidental exposure of identifiers. Use the post id as the top-level
+      // folder and a timestamped filename instead.
+      const storagePath = `${postId}/${Date.now()}_${safeName}`;
 
     // Upload original file to Storage
     await uploadPostFile({ bucket, path: storagePath, file });
@@ -67,7 +70,8 @@ export async function uploadAndRecordCommentFiles({ commentId, authorId, files }
     if (!safeName || /^\.+$/.test(safeName)) {
       safeName = `file_${Date.now()}`;
     }
-    const storagePath = `${authorId}/comments/${commentId}/${Date.now()}_${safeName}`;
+    // For comment attachments, avoid using the uploader id in the path.
+    const storagePath = `${commentId}/${Date.now()}_${safeName}`;
 
     await uploadPostFile({ bucket, path: storagePath, file });
 

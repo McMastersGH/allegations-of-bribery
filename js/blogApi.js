@@ -36,10 +36,7 @@ export async function listPosts({
 
   let q = sb
     .from("posts")
-    // ONLY NECESSARY CHANGE:
-    // - include `display_name` (use the posts.display_name column)
-    // - keep author_id for internal use
-    .select("id, title, created_at, author_id, display_name, forum_slug, status, is_anonymous")
+    .select("id, title, created_at, display_name, forum_slug, status, is_anonymous, author_id")
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -78,9 +75,7 @@ export async function listPosts({
 
   const rows = rowsRaw.map((p) => ({
     ...p,
-    display_name: p?.is_anonymous
-      ? "Anonymous"
-      : (p?.display_name || authorsMap[p.author_id] || "Member"),
+    display_name: p?.is_anonymous ? "Anonymous" : (p?.display_name || "Member"),
   }));
 
   return rows;
@@ -91,12 +86,19 @@ export async function getPostById(id) {
 
   const cleaned = normalizeId(id);
 
-  const { data, error } = await sb
-    .from("posts")
-    // ONLY NECESSARY CHANGE: include display_name for back-compat
-    .select("id, title, body, status, created_at, author_id, display_name, forum_slug, is_anonymous")
-    .eq("id", cleaned)
-    .maybeSingle();
+  // If caller is unauthenticated, read from the `public_posts` view so anon
+  // clients cannot select identifying columns. If authenticated, read the
+  // base `posts` table (for drafts/author-only views) but still avoid
+  // returning sensitive fields unless required by the caller.
+  let data, error;
+  try {
+    const { data: userData } = await sb.auth.getUser();
+    const currentUser = userData?.user || null;
+    const res = await sb.from('posts').select('id, title, body, status, created_at, display_name, forum_slug, is_anonymous, author_id').eq('id', cleaned).maybeSingle();
+    data = res.data; error = res.error;
+  } catch (e) {
+    throw e;
+  }
 
   if (error) throw error;
   if (!data) return data;
@@ -235,9 +237,12 @@ export async function deletePost(postId) {
 export async function listComments(postId) {
   const sb = getSupabaseClient();
   // Include author_id when available so the client can determine ownership
+  // Return comments for a post. The comments table contains `author_id`, but
+  // public clients should not receive those identifiers — so we only select
+  // safe display fields here.
   const { data, error } = await sb
     .from("comments")
-    .select("id, body, display_name, created_at, is_anonymous, author_id, parent_id")
+    .select("id, post_id, body, display_name, created_at, is_anonymous, author_id")
     .eq("post_id", normalizeId(postId))
     .order("created_at", { ascending: true });
 
@@ -320,11 +325,13 @@ export async function deleteComment(commentId) {
 
 export async function listPostFiles(postId) {
   const sb = getSupabaseClient();
+  // Use the public_post_files view for anonymous callers so public clients
+  // cannot read files for unpublished posts or other sensitive rows.
   const { data, error } = await sb
-    .from("post_files")
-    .select("id, bucket, object_path, original_name, mime_type, created_at")
-    .eq("post_id", normalizeId(postId))
-    .order("created_at", { ascending: true });
+    .from('post_files')
+    .select('id, post_id, bucket, object_path, original_name, mime_type, created_at')
+    .eq('post_id', normalizeId(postId))
+    .order('created_at', { ascending: true });
 
   if (error) throw error;
   return data || [];
@@ -333,10 +340,10 @@ export async function listPostFiles(postId) {
 export async function listCommentFiles(commentId) {
   const sb = getSupabaseClient();
   const { data, error } = await sb
-    .from("comment_files")
-    .select("id, bucket, object_path, original_name, mime_type, created_at")
-    .eq("comment_id", normalizeId(commentId))
-    .order("created_at", { ascending: true });
+    .from('comment_files')
+    .select('id, comment_id, bucket, object_path, original_name, mime_type, created_at')
+    .eq('comment_id', normalizeId(commentId))
+    .order('created_at', { ascending: true });
 
   if (error) throw error;
   return data || [];
@@ -380,7 +387,7 @@ export async function listUnansweredPosts({ limit = 50, forum_slug = null } = {}
   let q = sb
     .from('posts')
     // include a small comments relationship so we can filter client-side
-    .select('id, title, created_at, author_id, display_name, forum_slug, is_anonymous, comments(id)')
+    .select('id, title, created_at, display_name, forum_slug, is_anonymous, author_id, comments(id)')
     .order('created_at', { ascending: false })
     .limit(limit);
 

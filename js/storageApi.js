@@ -39,18 +39,19 @@ export async function bucketExists(bucket) {
   }
 }
 
-export function getPublicUrl(bucket, path) {
+export async function getPublicUrl(bucket, path) {
   const sb = getSupabaseClient();
   try {
-    const { data } = sb.storage.from(bucket).getPublicUrl(path);
-    if (data?.publicUrl) return data.publicUrl;
-
-    // Fallback: generate a short-lived signed URL (works for private buckets)
-    // Expires in 1 hour
-    const expiresIn = 60 * 60;
-    const { data: signed, error } = sb.storage.from(bucket).createSignedUrl(path, expiresIn);
-    if (error) throw error;
-    return signed?.signedUrl || null;
+    // Use the client-friendly public URL helper. This returns a public URL
+    // for objects in a public bucket. Creating signed URLs requires a
+    // service-role key (server-side) and will fail from the browser.
+    const { data, error } = await sb.storage.from(bucket).getPublicUrl(path);
+    if (error) {
+      console.error('storage.getPublicUrl:getPublicUrl error', error);
+      return null;
+    }
+    // data.publicUrl is the returned URL when bucket/object is public
+    return data?.publicUrl || null;
   } catch (e) {
     console.error("storage.getPublicUrl error:", e);
     return null;
