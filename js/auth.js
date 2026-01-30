@@ -173,6 +173,12 @@ export async function setMyAnonymity(isAnonymous) {
     .eq("user_id", session.user.id);
 
   if (error) return { ok: false, error: error.message };
+  try {
+    // Notify other parts of the app about the change so UI can update live
+    if (typeof window !== 'undefined' && window.dispatchEvent) {
+      window.dispatchEvent(new CustomEvent('anonymityChanged', { detail: { is_anonymous: !!isAnonymous } }));
+    }
+  } catch (e) {}
   return { ok: true };
 }
 

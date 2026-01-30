@@ -4,6 +4,7 @@ import { createPost } from "./blogApi.js";
 import { uploadAndRecordFiles } from "./uploader.js";
 
 const $ = (id) => document.getElementById(id);
+let currentAccountAnon = false;
 
 function getForumSlug() {
   const u = new URL(window.location.href);
@@ -32,6 +33,24 @@ function disableForm(disabled) {
     el.classList.toggle("opacity-50", !!disabled);
     el.classList.toggle("cursor-not-allowed", !!disabled);
   });
+}
+
+function updateAnonNotice(accountAnon, localToggle) {
+  const el = $("anonNotice");
+  if (!el) return;
+  const isAnon = !!accountAnon || !!localToggle;
+  if (!isAnon) {
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = '';
+  if (accountAnon && localToggle) {
+    el.textContent = 'Your account is set to anonymous and this post will be anonymous.';
+  } else if (accountAnon) {
+    el.textContent = 'Your account is set to post anonymously; this post will be anonymous.';
+  } else {
+    el.textContent = 'This post will be anonymous.';
+  }
 }
 
 async function requireApprovedAuthor() {
@@ -168,6 +187,29 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Approved -> enable posting
   disableForm(false);
+
+  // Track account anonymity and show anon notice
+  try {
+    currentAccountAnon = !!authorStatus?.is_anonymous;
+    updateAnonNotice(currentAccountAnon, $("anonToggle")?.checked);
+  } catch (e) {}
+
+  // Wire local post anon toggle to update notice
+  const localAnon = $("anonToggle");
+  if (localAnon) {
+    localAnon.onchange = () => updateAnonNotice(currentAccountAnon, !!localAnon.checked);
+  }
+
+  // Listen for global anonymity changes (dispatched by setMyAnonymity)
+  try {
+    window.addEventListener('anonymityChanged', (ev) => {
+      try {
+        const next = !!(ev && ev.detail && ev.detail.is_anonymous);
+        currentAccountAnon = next;
+        updateAnonNotice(currentAccountAnon, $("anonToggle")?.checked);
+      } catch (e) {}
+    });
+  } catch (e) {}
 
   // Wire custom file picker UI (keeps native #files input for upload)
   const filesInput = $("files");

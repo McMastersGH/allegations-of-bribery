@@ -45,6 +45,12 @@ async function loadProfile() {
 async function saveProfile(e) {
   e.preventDefault();
   showMsg("Saving...", "muted");
+  const saveBtn = document.getElementById("saveBtn");
+  const origText = saveBtn ? saveBtn.textContent : null;
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Saving...";
+  }
 
   try {
     const session = await getSession();
@@ -85,6 +91,13 @@ async function saveProfile(e) {
     if (!ok) throw new Error(anonErr || "Failed to set anonymity");
 
     showMsg("Saved.", "muted");
+    if (saveBtn) {
+      saveBtn.textContent = "Saved";
+      // restore original label after a short delay
+      setTimeout(() => {
+        try { if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = origText || 'Save changes'; } } catch (e) {}
+      }, 2500);
+    }
     // After saving author profile, sync author's display_name into their posts and comments
     try {
       await sb.rpc("sync_author_display_names_and_comments", { p_user: userId });
@@ -96,6 +109,7 @@ async function saveProfile(e) {
   } catch (e) {
     console.error(e);
     showMsg("Failed to save profile.", "muted");
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = origText || 'Save changes'; }
   }
 }
 

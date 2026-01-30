@@ -18,6 +18,8 @@ let commentBtn;
 let commentMsg;
 let commentFilesInput;
 
+let anonNoticeEl;
+
 // Handle anonymity toggle
 let commentAnonPanel;
 let commentAnonToggle;
@@ -802,6 +804,20 @@ async function renderComments(post) {
         textarea.style.minHeight = '60px';
         textarea.style.marginTop = '6px';
 
+        // Inline notice for reply boxes when account anonymity is enabled
+        (async () => {
+          try {
+            const st = await getMyAuthorStatus();
+            if (st?.is_anonymous) {
+              const note = document.createElement('p');
+              note.className = 'anon-notice small';
+              note.textContent = 'Replies will be posted anonymously.';
+              note.style.marginTop = '6px';
+              el.appendChild(note);
+            }
+          } catch (e) {}
+        })();
+
         const saveBtn = document.createElement('button');
         saveBtn.className = 'btn btn-sm';
         saveBtn.textContent = 'Reply';
@@ -861,6 +877,8 @@ async function renderComments(post) {
         cancelBtn.onclick = () => {
           const box = el.querySelector('.reply-box');
           if (box) box.remove();
+          const note = el.querySelector('.anon-notice.small');
+          if (note) note.remove();
           saveBtn.remove();
           cancelBtn.remove();
         };
@@ -954,6 +972,38 @@ async function wireCommentForm(post) {
   if (checkBtn) checkBtn.style.display = '';
   if (commentAnonPanel) commentAnonPanel.style.display = '';
   if (commentAnonToggle) commentAnonToggle.disabled = false;
+  // Initialize comment anonymity UI from account status and update visible notice
+  try {
+    const st = await getMyAuthorStatus();
+    if (commentAnonToggle) commentAnonToggle.checked = !!st?.is_anonymous;
+    if (commentAnonStatus) commentAnonStatus.textContent = st?.is_anonymous ? 'Anonymity is ON for your account.' : 'Anonymity is OFF for your account.';
+    if (anonNoticeEl) {
+      if (st?.is_anonymous) {
+        anonNoticeEl.style.display = '';
+        anonNoticeEl.textContent = 'Your account is set to post comments anonymously.';
+      } else {
+        anonNoticeEl.style.display = 'none';
+      }
+    }
+  } catch (e) {}
+  // Listen for global anonymity changes and update UI immediately
+  try {
+    window.addEventListener('anonymityChanged', (ev) => {
+      try {
+        const next = !!(ev && ev.detail && ev.detail.is_anonymous);
+        if (commentAnonToggle) commentAnonToggle.checked = next;
+        if (commentAnonStatus) commentAnonStatus.textContent = next ? 'Anonymity is ON for your account.' : 'Anonymity is OFF for your account.';
+        if (anonNoticeEl) {
+          if (next) {
+            anonNoticeEl.style.display = '';
+            anonNoticeEl.textContent = 'Your account is set to post comments anonymously.';
+          } else {
+            anonNoticeEl.style.display = 'none';
+          }
+        }
+      } catch (e) {}
+    });
+  } catch (e) {}
   // Persist toggle changes immediately
   if (commentAnonToggle) {
     commentAnonToggle.onchange = async () => {
@@ -965,6 +1015,14 @@ async function wireCommentForm(post) {
           commentAnonStatus.textContent = next
             ? "Anonymity is ON for your account."
             : "Anonymity is OFF for your account.";
+        }
+        if (anonNoticeEl) {
+          if (next) {
+            anonNoticeEl.style.display = '';
+            anonNoticeEl.textContent = 'Your account is set to post comments anonymously.';
+          } else {
+            anonNoticeEl.style.display = 'none';
+          }
         }
       } catch (e) {
         // revert UI if save fails
@@ -1037,6 +1095,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   commentAnonPanel = document.getElementById("commentAnonPanel");
   commentAnonToggle = document.getElementById("commentAnonToggle");
   commentAnonStatus = document.getElementById("commentAnonStatus");
+  anonNoticeEl = document.getElementById("anonNotice");
 
   await wireAuthButtons({ loginLinkId: "loginLink", logoutBtnId: "logoutBtn" });
 

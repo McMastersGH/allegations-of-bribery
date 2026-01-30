@@ -21,15 +21,15 @@ a:hover{text-decoration:underline}
 }
 .brand{display:flex;align-items:center;gap:10px}
 .brand img{width:38px;height:38px;object-fit:contain}
-.brand .title{font-weight:700;letter-spacing:.2px}
+.brand .title{font-weight:700;letter-spacing:.2px; max-width:none; white-space:normal;}
 
-/* Header tweaks to prevent long titles pushing action buttons off-screen on small devices */
+/* Header tweaks: allow the full site title to wrap instead of truncating */
 header .text-lg {
-  max-width: 160px;
+  max-width: none;
   display: inline-block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 /* Ensure header action buttons shrink on small screens */
@@ -78,6 +78,16 @@ label{display:block;margin:10px 0 6px;color:var(--muted);font-size:13px}
 .tag{display:inline-block;border:1px solid var(--line);padding:4px 8px;border-radius:999px;color:var(--muted);font-size:12px}
 .error{color:#fecaca;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.35);padding:10px 12px;border-radius:12px}
 .ok{color:#bbf7d0;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);padding:10px 12px;border-radius:12px}
+.anon-notice{
+  color:var(--danger);
+  background: rgba(239,68,68,0.06);
+  border: 1px solid rgba(239,68,68,0.18);
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin-top: 8px;
+  font-weight:600;
+}
+.anon-notice.small{font-weight:500;padding:6px 8px;font-size:0.92rem}
 .fileRow{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px;background:rgba(18,24,37,.35)}
 .fileRow a{word-break:break-all}
 
@@ -589,3 +599,135 @@ img, video, iframe { max-width: 100%; height: auto; display: block; }
   border-left: 2px solid rgba(255,255,255,0.02);
   padding-left: 12px;
 }
+
+/* =========================================================
+   Additional responsive tweaks to prevent overflow on small screens
+   ========================================================= */
+
+/* Make container fully fluid on very small viewports */
+@media (max-width: 520px) {
+  .container { max-width: 100%; padding-left: 12px; padding-right: 12px; }
+  .nav { padding-left: 8px; padding-right: 8px; }
+  .brand .title { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
+  .nav { flex-wrap: wrap; align-items: center; gap:8px; }
+  .nav .brand { flex: 1 1 auto; min-width: 0; }
+  .nav .actions { flex: 0 1 auto; }
+
+  /* Prevent buttons from overflowing; allow them to wrap on multiple lines */
+  .actions, .row { flex-wrap: wrap; }
+  .btn { box-sizing: border-box; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Reduce padding to save space on tiny screens */
+  .btn, .rounded-md { padding-left: 8px !important; padding-right: 8px !important; }
+
+  /* Ensure cards and badges break long words and do not overflow */
+  .card, .author-badge, .postItem, .fileRow, .panel, #comments .item { overflow-wrap: break-word; word-break: break-word; }
+
+  /* Make sure floated badges stack below content */
+  #authorBadge.author-badge { float: none; display:block; width:100%; box-sizing:border-box; }
+}
+
+/* Slightly larger phones/tablets: ensure two-column grids collapse cleanly */
+@media (max-width: 900px) {
+  .grid.cols2 { grid-template-columns: 1fr; }
+  .logo { height: auto; max-width: 100%; }
+}
+
+/* Force Tailwind containers used in headers/main to be fluid on very small screens
+   This avoids inner scrollbars when devices report very small widths */
+@media (max-width: 420px) {
+  .mx-auto.max-w-6xl, main.mx-auto.max-w-6xl, header .mx-auto.max-w-6xl {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    box-sizing: border-box;
+  }
+
+  /* Prevent any element from causing horizontal overflow */
+  html, body { overflow-x: hidden; min-width: 0; }
+}
+
+/* Page header cards: stack title and controls on small screens to avoid overflow */
+@media (max-width: 520px) {
+  /* Target the generic card header pattern used on list pages (new posts, unanswered, etc.) */
+  .rounded-lg > .flex.items-center.justify-between,
+  .card > .flex.items-center.justify-between {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  /* Make search input and action buttons full-width and wrap neatly */
+  .rounded-lg .flex.items-center.gap-3,
+  .card .flex.items-center.gap-3 {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .rounded-lg .flex.items-center.gap-3 input[type="search"],
+  .rounded-lg .flex.items-center.gap-3 input,
+  .card .flex.items-center.gap-3 input[type="search"],
+  .card .flex.items-center.gap-3 input {
+    flex: 1 1 100%;
+    min-width: 0; /* avoid input forcing overflow */
+  }
+
+  .rounded-lg .flex.items-center.gap-3 button,
+  .card .flex.items-center.gap-3 button {
+    flex: 0 0 auto;
+  }
+
+  /* Header tweaks: allow the full site title to wrap instead of truncating */
+  header .text-lg {
+}
+
+/* Strong wrapping rules for thread titles and metadata to prevent horizontal overflow */
+.postList .postItem .title,
+.postList .postItem a,
+.postList .postItem .meta,
+.postList .postItem h3,
+    max-width: none;
+    display: inline-block;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+/* Ensure inline anchors inside titles can wrap */
+.postList .postItem a { display: inline; word-break: break-word; overflow-wrap: anywhere; }
+
+@media (max-width: 420px) {
+  .postList .postItem { width: 100% !important; max-width: 100% !important; box-sizing: border-box; }
+  .postList .postItem .title { font-size: 0.95rem; }
+  .recent-threads, .sidebar { max-width: 100%; width: 100%; }
+  .grid.cols2 { grid-template-columns: 1fr !important; }
+}
+
+/* Prevent any element from creating horizontal overflow via long unbroken strings */
+* { min-width: 0; }
+
+/* Override Tailwind's .truncate for post list titles so they wrap on small screens */
+#postsList a .truncate,
+#postsList a .post-title {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  display: block;
+}
+
+/* Ensure the anchor card uses full width and doesn't shrink on tiny viewports */
+#postsList a {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+@media (max-width: 520px) {
+  #postsList a .truncate { font-size: 0.95rem; }
+}
+
+
+
