@@ -1,6 +1,5 @@
 import { createForum } from "./forumApi.js";
 import { getSupabaseClient } from "./supabaseClient.js";
-import { ADMIN_EMAILS } from "./config.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -14,10 +13,21 @@ function setStatus(msg, isError = false) {
 
 async function checkAdmin() {
   const sb = getSupabaseClient();
-  const res = await sb.auth.getUser();
-  const user = res?.data?.user ?? null;
-  if (!user || !user.email) return null;
-  return ADMIN_EMAILS.includes(user.email.toLowerCase()) ? user : null;
+  // Use server-side helper `is_admin()` to determine admin status.
+  // This avoids embedding admin emails in client config and relies on DB-owned list.
+  try {
+    const { data, error } = await sb.rpc("is_admin");
+    if (error) {
+      console.error("is_admin RPC error:", error);
+      return null;
+    }
+    // RPC may return boolean directly or an array containing the boolean.
+    const isAdmin = data === true || (Array.isArray(data) && data[0] === true);
+    return isAdmin ? true : null;
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
