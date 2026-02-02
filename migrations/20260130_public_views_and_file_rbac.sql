@@ -8,9 +8,10 @@ SELECT id, title, body, display_name, forum_slug, created_at, is_anonymous, stat
 FROM posts
 WHERE status = 'published';
 
--- Public comments view (comments for published posts only)
+-- Replace view by dropping first so we can change the column list safely.
+DROP VIEW IF EXISTS public_comments;
 CREATE OR REPLACE VIEW public_comments AS
-SELECT c.id, c.post_id, c.body, c.display_name, c.created_at, c.is_anonymous
+SELECT c.id, c.post_id, c.parent_id, c.body, c.display_name, c.created_at, c.is_anonymous
 FROM comments c
 JOIN posts p ON p.id = c.post_id
 WHERE p.status = 'published';
@@ -21,6 +22,27 @@ REVOKE SELECT ON comments FROM anon;
 
 GRANT SELECT ON public_posts TO anon;
 GRANT SELECT ON public_comments TO anon;
+
+-- Public file metadata views (exclude storage object paths and buckets)
+CREATE OR REPLACE VIEW public_post_files AS
+SELECT pf.id, pf.post_id, pf.original_name, pf.mime_type, pf.created_at
+FROM post_files pf
+JOIN posts p ON p.id = pf.post_id
+WHERE p.status = 'published';
+
+CREATE OR REPLACE VIEW public_comment_files AS
+SELECT cf.id, cf.comment_id, cf.original_name, cf.mime_type, cf.created_at
+FROM comment_files cf
+JOIN comments c ON c.id = cf.comment_id
+JOIN posts p ON p.id = c.post_id
+WHERE p.status = 'published';
+
+-- Revoke direct SELECT on underlying file tables from anon role and grant select on views
+REVOKE SELECT ON post_files FROM anon;
+REVOKE SELECT ON comment_files FROM anon;
+
+GRANT SELECT ON public_post_files TO anon;
+GRANT SELECT ON public_comment_files TO anon;
 
 -- Note: This migration intentionally preserves table-level access for authenticated
 -- users but prevents anonymous (public) clients using the anon key from directly
@@ -41,6 +63,8 @@ DECLARE
   v_role text := current_setting('jwt.claims.role', true);
   v_uid uuid := auth.uid();
 BEGIN
+  -- Ensure function runs with a safe search_path to avoid privilege escalation
+  PERFORM set_config('search_path', 'public', true);
   -- Try post_files
   SELECT bucket, object_path, mime_type, original_name, author_id
     INTO v_bucket, v_object, v_mime, v_name, v_owner

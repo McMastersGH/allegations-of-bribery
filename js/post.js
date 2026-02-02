@@ -106,7 +106,7 @@ function createLinkifiedProse(text) {
           iframe.width = '560';
           iframe.height = '315';
           iframe.frameBorder = '0';
-          iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
+          iframe.allow = 'autoplay; picture-in-picture; fullscreen';
           iframe.allowFullscreen = true;
           iframe.className = 'linked-video-iframe';
           iframe.style.maxWidth = '100%';
@@ -496,7 +496,13 @@ async function renderFiles(postId) {
   }
 
   for (const f of files) {
-    const url = await getPublicUrl(f.bucket, f.object_path);
+    // If bucket/object_path are not provided (anonymous view), do not
+    // attempt to build a public URL. The `public_post_files` view intentionally
+    // omits storage paths for anon clients; show a sign-in prompt instead.
+    let url = null;
+    if (f.bucket && f.object_path) {
+      url = await getPublicUrl(f.bucket, f.object_path);
+    }
     const el = document.createElement("div");
     el.className = "item";
     if (url) {
@@ -505,9 +511,12 @@ async function renderFiles(postId) {
       <div class="muted">${escapeHtml(f.mime_type || "file")} • ${escapeHtml(fmtDate(f.created_at))}</div>
     `;
     } else {
+      // For anonymous users the storage path is intentionally hidden. Show
+      // filename and a gentle prompt to sign in for access.
       el.innerHTML = `
-      <div>${escapeHtml(f.original_name)} <span class="muted">(unavailable)</span></div>
+      <div>${escapeHtml(f.original_name)} <span class="muted">(preview unavailable)</span></div>
       <div class="muted">${escapeHtml(f.mime_type || "file")} • ${escapeHtml(fmtDate(f.created_at))}</div>
+      <div class="mt-2 text-xs text-slate-400">Sign in to view or download attachments.</div>
     `;
     }
 
@@ -656,7 +665,65 @@ async function renderFiles(postId) {
       previewWrap.appendChild(makeToggle(vid, 'Hide preview', 'Show preview'));
       previewWrap.appendChild(vid);
     } else if (mime && (mime.startsWith("image/") || mime === "application/pdf")) {
-      // no inline preview for images or pdfs
+      // Inline preview for images and PDFs — auto-show until hidden
+      try {
+        if (mime.startsWith('image/')) {
+          const img = document.createElement('img');
+          img.src = url;
+          img.alt = f.original_name || '';
+          img.style.maxWidth = '100%';
+          img.style.borderRadius = '6px';
+          img.className = 'file-inline-image';
+          img.__startVisible = true;
+          previewWrap.appendChild(makeToggle(img, 'Hide preview', 'Show preview'));
+          previewWrap.appendChild(img);
+        } else if (mime === 'application/pdf') {
+          // Try to render first page with pdfjs if available
+          if (window.pdfjsLib) {
+            try {
+              const loadingTask = window.pdfjsLib.getDocument(url);
+              const pdf = await loadingTask.promise;
+              const page = await pdf.getPage(1);
+              const viewport = page.getViewport({ scale: 1 });
+              const containerWidth = Math.min(760, previewWrap.clientWidth || 760);
+              const scale = Math.max(0.6, Math.min(1.2, (containerWidth / viewport.width) * 0.95));
+              const vp = page.getViewport({ scale });
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              canvas.width = vp.width;
+              canvas.height = vp.height;
+              await page.render({ canvasContext: ctx, viewport: vp }).promise;
+              canvas.style.maxWidth = '100%';
+              canvas.style.borderRadius = '6px';
+              canvas.__startVisible = true;
+              previewWrap.appendChild(makeToggle(canvas, 'Hide preview', 'Show preview'));
+              previewWrap.appendChild(canvas);
+            } catch (e) {
+              // fallback to iframe if pdfjs render fails
+              const iframe = document.createElement('iframe');
+              iframe.src = url;
+              iframe.className = 'file-modal-iframe';
+              iframe.style.width = '100%';
+              iframe.style.height = '480px';
+              iframe.__startVisible = true;
+              previewWrap.appendChild(makeToggle(iframe, 'Hide preview', 'Show preview'));
+              previewWrap.appendChild(iframe);
+            }
+          } else {
+            const iframe = document.createElement('iframe');
+            iframe.src = url;
+            iframe.className = 'file-modal-iframe';
+            iframe.style.width = '100%';
+            iframe.style.height = '480px';
+            iframe.__startVisible = true;
+            previewWrap.appendChild(makeToggle(iframe, 'Hide preview', 'Show preview'));
+            previewWrap.appendChild(iframe);
+          }
+        }
+      } catch (e) {
+        // ignore preview errors and leave only the anchor/controls
+        console.error('inline preview error', e);
+      }
     }
 
     // Text preview: fetch first chunk and display truncated, with toggle
@@ -796,29 +863,32 @@ async function renderComments(post) {
   const authorProfiles = new Map();
   const currentUserId = session?.user?.id || null;
   // Build a tree of comments (parent_id -> children)
+  // Normalize ids to strings to avoid type mismatches between numeric/string ids
   const byId = new Map();
   for (const c of comments) {
     c.children = [];
-    byId.set(c.id, c);
+    byId.set(String(c.id), c);
   }
   const roots = [];
   for (const c of comments) {
-    if (c.parent_id && byId.has(c.parent_id)) {
-      byId.get(c.parent_id).children.push(c);
+    const pid = c.parent_id ? String(c.parent_id) : null;
+    if (pid && byId.has(pid)) {
+      byId.get(pid).children.push(c);
     } else {
       roots.push(c);
     }
   }
 
-  const renderNode = async (c, depth = 0) => {
+  const renderNode = async (c, depth = 0, container = commentsEl) => {
     const el = document.createElement("div");
     el.className = "item";
     el.style.marginLeft = `${depth * 18}px`;
     if (depth > 0) el.classList.add('reply');
     const commenter = c.is_anonymous ? "Anonymous" : (c.display_name || "Member");
 
+    const isReply = depth > 0;
     el.innerHTML = `
-      <div class="muted"><b>${escapeHtml(commenter)}</b> • ${escapeHtml(fmtDate(c.created_at))}</div>
+      <div class="muted"><b>${escapeHtml(commenter)}</b> ${isReply ? '<span class="reply-label">Reply</span>' : ''} • ${escapeHtml(fmtDate(c.created_at))}</div>
     `;
     const bodyEl = createLinkifiedProse(c.body || '');
     bodyEl.style.marginTop = '8px';
@@ -951,6 +1021,9 @@ async function renderComments(post) {
 
     const ctrl = document.createElement("div");
     ctrl.style.marginTop = "6px";
+    // Always attach the control container so buttons added later (Reply)
+    // are visible even when the current user cannot edit/delete.
+    el.appendChild(ctrl);
 
     if (canManage) {
       const editBtn = document.createElement("button");
@@ -964,7 +1037,6 @@ async function renderComments(post) {
 
       ctrl.appendChild(editBtn);
       ctrl.appendChild(deleteBtn);
-      el.appendChild(ctrl);
 
       editBtn.onclick = () => {
         const textarea = document.createElement("textarea");
@@ -1154,13 +1226,50 @@ async function renderComments(post) {
       ctrl.appendChild(replyBtn);
     }
 
-    // Attach rendered node
-    commentsEl.appendChild(el);
+    // Attach rendered node to provided container
+    container.appendChild(el);
 
-    // Render children recursively (fully expanded inline)
+    // If there are children, create a collapsible container and an arrow toggle.
     if (c.children && c.children.length) {
-      for (const child of c.children) {
-        await renderNode(child, depth + 1);
+      try {
+        const headerDiv = el.firstElementChild || el.querySelector('div');
+        const arrowBtn = document.createElement('button');
+        arrowBtn.className = 'reply-arrow';
+        arrowBtn.type = 'button';
+        arrowBtn.innerHTML = '<span class="arrow-symbol">▶</span><span class="reply-count">' + (c.children.length || 0) + '</span>';
+        arrowBtn.title = 'Show replies';
+        arrowBtn.style.marginRight = '8px';
+        arrowBtn.style.background = 'transparent';
+        arrowBtn.style.border = 'none';
+        arrowBtn.style.color = 'var(--muted)';
+        arrowBtn.style.cursor = 'pointer';
+        arrowBtn.style.fontSize = '1rem';
+        if (headerDiv) headerDiv.prepend(arrowBtn);
+
+        const childrenWrap = document.createElement('div');
+        childrenWrap.className = 'comment-children';
+        childrenWrap.style.display = 'none';
+        el.appendChild(childrenWrap);
+
+        arrowBtn.onclick = async () => {
+          if (childrenWrap.style.display === 'none') {
+            // Render children into the collapsible container if not already
+            if (!childrenWrap.hasChildNodes()) {
+              for (const child of c.children) {
+                await renderNode(child, depth + 1, childrenWrap);
+              }
+            }
+            childrenWrap.style.display = '';
+            arrowBtn.innerHTML = '<span class="arrow-symbol">▼</span><span class="reply-count">' + (c.children.length || 0) + '</span>';
+            arrowBtn.title = 'Hide replies';
+          } else {
+            childrenWrap.style.display = 'none';
+            arrowBtn.innerHTML = '<span class="arrow-symbol">▶</span><span class="reply-count">' + (c.children.length || 0) + '</span>';
+            arrowBtn.title = 'Show replies';
+          }
+        };
+      } catch (e) {
+        // ignore
       }
     }
   };

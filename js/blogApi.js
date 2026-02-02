@@ -33,31 +33,41 @@ export async function listPosts({
   forum_slug = null,
 } = {}) {
   const sb = getSupabaseClient();
+  // If caller is unauthenticated, read from `public_posts` to avoid exposing
+  // author-identifying columns to anon clients. Authenticated callers read
+  // from the base `posts` table and receive `author_id` where available.
+  const { data: userData } = await sb.auth.getUser();
+  const currentUser = userData?.user || null;
+  const anon = !currentUser;
 
-  let q = sb
-    .from("posts")
-    .select("id, title, created_at, display_name, forum_slug, status, is_anonymous, author_id")
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  const source = anon ? 'public_posts' : 'posts';
+  const cols = anon
+    ? 'id, title, created_at, display_name, forum_slug, status, is_anonymous'
+    : 'id, title, created_at, display_name, forum_slug, status, is_anonymous, author_id';
 
-  if (forum_slug) q = q.eq("forum_slug", forum_slug);
-  if (publishedOnly) q = q.eq("status", "published");
+  let q = sb.from(source).select(cols).order('created_at', { ascending: false }).limit(limit);
+  if (forum_slug) q = q.eq('forum_slug', forum_slug);
+  if (publishedOnly) q = q.eq('status', 'published');
 
-  const s = String(search || "").trim();
-  if (s) {
-    q = q.or(`title.ilike.%${s}%,body.ilike.%${s}%`);
-  }
+  const s = String(search || '').trim();
+  if (s) q = q.or(`title.ilike.%${s}%,body.ilike.%${s}%`);
 
   const { data, error } = await q;
   if (error) throw error;
 
-  // Back-compat: some UI code still expects `display_name` on the post object.
-  // If `display_name` is not set on the post row, attempt to look up the
-  // author's `display_name` from the `authors` table and use that as a
-  // fallback before finally falling back to "Member".
   const rowsRaw = data || [];
 
-  // Collect author_ids that need lookup (where display_name is falsy)
+  // For anonymous callers, `display_name` is expected to be present on the
+  // view rows already. For authenticated callers, perform the same fallback
+  // lookup as before to populate missing `display_name` from `authors`.
+  if (anon) {
+    return rowsRaw.map((p) => ({
+      ...p,
+      display_name: p?.is_anonymous ? 'Anonymous' : (p?.display_name || 'Member'),
+    }));
+  }
+
+  // Authenticated path: lookup missing author display names
   const missingAuthorIds = [...new Set(
     rowsRaw.filter((p) => !p?.display_name).map((p) => p.author_id).filter(Boolean)
   )];
@@ -65,9 +75,9 @@ export async function listPosts({
   let authorsMap = {};
   if (missingAuthorIds.length) {
     const { data: authorsData, error: authorsErr } = await sb
-      .from("authors")
-      .select("user_id, display_name")
-      .in("user_id", missingAuthorIds);
+      .from('authors')
+      .select('user_id, display_name')
+      .in('user_id', missingAuthorIds);
     if (!authorsErr && Array.isArray(authorsData)) {
       authorsMap = Object.fromEntries((authorsData || []).map((a) => [a.user_id, a.display_name]));
     }
@@ -75,7 +85,7 @@ export async function listPosts({
 
   const rows = rowsRaw.map((p) => ({
     ...p,
-    display_name: p?.is_anonymous ? "Anonymous" : (p?.display_name || "Member"),
+    display_name: p?.is_anonymous ? 'Anonymous' : (p?.display_name || authorsMap[p.author_id] || 'Member'),
   }));
 
   return rows;
@@ -94,7 +104,12 @@ export async function getPostById(id) {
   try {
     const { data: userData } = await sb.auth.getUser();
     const currentUser = userData?.user || null;
-    const res = await sb.from('posts').select('id, title, body, status, created_at, display_name, forum_slug, is_anonymous, author_id').eq('id', cleaned).maybeSingle();
+    const anon = !currentUser;
+    const colsAuth = 'id, title, body, status, created_at, display_name, forum_slug, is_anonymous, author_id';
+    const colsAnon = 'id, title, body, status, created_at, display_name, forum_slug, is_anonymous';
+    const source = anon ? 'public_posts' : 'posts';
+    const cols = anon ? colsAnon : colsAuth;
+    const res = await sb.from(source).select(cols).eq('id', cleaned).maybeSingle();
     data = res.data; error = res.error;
   } catch (e) {
     throw e;
@@ -239,12 +254,20 @@ export async function listComments(postId) {
   // Include author_id when available so the client can determine ownership
   // Return comments for a post. The comments table contains `author_id`, but
   // public clients should not receive those identifiers — so we only select
-  // safe display fields here.
+  // safe display fields here. Use public view for anonymous callers.
+  const { data: userData } = await sb.auth.getUser();
+  const currentUser = userData?.user || null;
+  const anon = !currentUser;
+  const source = anon ? 'public_comments' : 'comments';
+  const cols = anon
+    ? 'id, post_id, parent_id, body, display_name, created_at, is_anonymous'
+    : 'id, post_id, parent_id, body, display_name, created_at, is_anonymous, author_id';
+
   const { data, error } = await sb
-    .from("comments")
-    .select("id, post_id, body, display_name, created_at, is_anonymous, author_id")
-    .eq("post_id", normalizeId(postId))
-    .order("created_at", { ascending: true });
+    .from(source)
+    .select(cols)
+    .eq('post_id', normalizeId(postId))
+    .order('created_at', { ascending: true });
 
   if (error) throw error;
   return data || [];
@@ -327,10 +350,17 @@ export async function listPostFiles(postId) {
   const sb = getSupabaseClient();
   // Use the public_post_files view for anonymous callers so public clients
   // cannot read files for unpublished posts or other sensitive rows.
+  const { data: userData } = await sb.auth.getUser();
+  const currentUser = userData?.user || null;
+  const anon = !currentUser;
+  const source = anon ? 'public_post_files' : 'post_files';
+  const cols = anon
+    ? 'id, post_id, original_name, mime_type, created_at, bucket, object_path'
+    : 'id, post_id, bucket, object_path, original_name, mime_type, created_at';
   const { data, error } = await sb
-    .from('post_files')
-    .select('id, post_id, bucket, object_path, original_name, mime_type, created_at')
-    .eq('post_id', normalizeId(postId))
+    .from(source)
+    .select(cols)
+    .eq(anon ? 'post_id' : 'post_id', normalizeId(postId))
     .order('created_at', { ascending: true });
 
   if (error) throw error;
@@ -339,9 +369,16 @@ export async function listPostFiles(postId) {
 
 export async function listCommentFiles(commentId) {
   const sb = getSupabaseClient();
+  const { data: userData } = await sb.auth.getUser();
+  const currentUser = userData?.user || null;
+  const anon = !currentUser;
+  const source = anon ? 'public_comment_files' : 'comment_files';
+  const cols = anon
+    ? 'id, comment_id, original_name, mime_type, created_at, bucket, object_path'
+    : 'id, comment_id, bucket, object_path, original_name, mime_type, created_at';
   const { data, error } = await sb
-    .from('comment_files')
-    .select('id, comment_id, bucket, object_path, original_name, mime_type, created_at')
+    .from(source)
+    .select(cols)
     .eq('comment_id', normalizeId(commentId))
     .order('created_at', { ascending: true });
 

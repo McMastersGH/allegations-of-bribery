@@ -1,5 +1,5 @@
 // js/storageApi.js
-import { getSupabaseClient } from "./supabaseClient.js";
+import { getSupabaseClient, SUPABASE_URL } from "./supabaseClient.js";
 
 export async function uploadPostFile({ bucket, path, file }) {
   const sb = getSupabaseClient();
@@ -42,16 +42,32 @@ export async function bucketExists(bucket) {
 export async function getPublicUrl(bucket, path) {
   const sb = getSupabaseClient();
   try {
+    // If bucket or path missing, return null early (likely an anonymous view)
+    if (!bucket || !path) return null;
     // Use the client-friendly public URL helper. This returns a public URL
     // for objects in a public bucket. Creating signed URLs requires a
     // service-role key (server-side) and will fail from the browser.
     const { data, error } = await sb.storage.from(bucket).getPublicUrl(path);
     if (error) {
       console.error('storage.getPublicUrl:getPublicUrl error', error);
-      return null;
+      // fall through to attempt a constructed public URL
     }
     // data.publicUrl is the returned URL when bucket/object is public
-    return data?.publicUrl || null;
+    if (data?.publicUrl) return data.publicUrl;
+
+    // Fallback: construct the public URL directly. This works when the
+    // storage bucket is configured public but the helper didn't return a
+    // value (or the client environment prevents the helper). Constructing
+    // the URL may still result in a 403 if the bucket is not public.
+    try {
+      const base = String(SUPABASE_URL || '').replace(/\/+$/, '');
+      // Preserve path segments while safely encoding each segment
+      const encodedPath = String(path).split('/').map(encodeURIComponent).join('/');
+      const encodedBucket = encodeURIComponent(String(bucket));
+      return `${base}/storage/v1/object/public/${encodedBucket}/${encodedPath}`;
+    } catch (ee) {
+      return null;
+    }
   } catch (e) {
     console.error("storage.getPublicUrl error:", e);
     return null;

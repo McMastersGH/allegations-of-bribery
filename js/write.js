@@ -226,11 +226,126 @@ document.addEventListener("DOMContentLoaded", async () => {
   const filesInput = $("files");
   const filesBtn = $("filesBtn");
   const filesLabel = $("filesLabel");
+  // Preview wiring: show a preview frame for selected files until hidden
+  const filePreviewContainer = $("filePreviewContainer");
+  const filePreview = $("filePreview");
+  const hidePreviewBtn = $("hidePreviewBtn");
+  let _previewUrls = [];
+
+  function clearPreviews() {
+    try {
+      if (filePreview) filePreview.innerHTML = '';
+      _previewUrls.forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} });
+      _previewUrls = [];
+    } catch (e) {}
+  }
+
+  async function renderPreviews(files) {
+    clearPreviews();
+    if (!filePreview) return;
+    for (const file of files) {
+      const type = file.type || '';
+      const url = URL.createObjectURL(file);
+      _previewUrls.push(url);
+
+      // Images
+      if (type.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.src = url;
+        img.className = 'file-preview-img';
+        img.style.maxWidth = '100%';
+        img.style.borderRadius = '8px';
+        img.style.marginBottom = '8px';
+        filePreview.appendChild(img);
+        continue;
+      }
+
+      // PDFs: render first page using pdfjs when available
+      if (type === 'application/pdf' || (file.name || '').toLowerCase().endsWith('.pdf')) {
+        if (window.pdfjsLib) {
+          try {
+            const loadingTask = window.pdfjsLib.getDocument(url);
+            const pdf = await loadingTask.promise;
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({ scale: 1 });
+            const containerWidth = Math.min(760, filePreview.clientWidth || 760);
+            const scale = Math.max(0.5, Math.min(1.2, (containerWidth / viewport.width) * 0.95));
+            const vp = page.getViewport({ scale });
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = vp.width;
+            canvas.height = vp.height;
+            await page.render({ canvasContext: ctx, viewport: vp }).promise;
+            canvas.style.maxWidth = '100%';
+            canvas.style.borderRadius = '6px';
+            canvas.style.marginBottom = '8px';
+            filePreview.appendChild(canvas);
+            continue;
+          } catch (e) {
+            // fallthrough to link fallback below
+          }
+        }
+      }
+
+      // Audio
+      if (type.startsWith('audio/')) {
+        const a = document.createElement('audio');
+        a.controls = true;
+        a.src = url;
+        a.style.width = '100%';
+        a.style.marginBottom = '8px';
+        filePreview.appendChild(a);
+        continue;
+      }
+
+      // Video
+      if (type.startsWith('video/')) {
+        const v = document.createElement('video');
+        v.controls = true;
+        v.src = url;
+        v.style.maxWidth = '100%';
+        v.style.borderRadius = '6px';
+        v.style.marginBottom = '8px';
+        filePreview.appendChild(v);
+        continue;
+      }
+
+      // Fallback: show filename and download link
+      const row = document.createElement('div');
+      row.className = 'fileRow';
+      const a = document.createElement('a');
+      a.href = url;
+      a.textContent = file.name || 'Unnamed file';
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.download = file.name || '';
+      row.appendChild(a);
+      filePreview.appendChild(row);
+    }
+  }
+
   if (filesBtn && filesInput && filesLabel) {
     filesBtn.addEventListener('click', () => filesInput.click());
-    filesInput.addEventListener('change', () => {
-      const names = filesInput.files ? Array.from(filesInput.files).map(f => f.name) : [];
-      filesLabel.textContent = names.length ? names.join(', ') : 'No files selected.';
+    filesInput.addEventListener('change', async () => {
+      const files = filesInput.files ? Array.from(filesInput.files) : [];
+      filesLabel.textContent = files.length ? files.map(f => f.name).join(', ') : 'No files selected.';
+      if (files.length) {
+        try {
+          await renderPreviews(files);
+          if (filePreviewContainer) filePreviewContainer.style.display = '';
+        } catch (e) {
+          console.error('Preview render failed', e);
+        }
+      } else {
+        clearPreviews();
+        if (filePreviewContainer) filePreviewContainer.style.display = 'none';
+      }
+    });
+  }
+
+  if (hidePreviewBtn) {
+    hidePreviewBtn.addEventListener('click', () => {
+      if (filePreviewContainer) filePreviewContainer.style.display = 'none';
     });
   }
 });

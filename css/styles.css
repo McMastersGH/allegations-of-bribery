@@ -395,6 +395,36 @@ img, video, iframe { max-width: 100%; height: auto; display: block; }
   color: var(--muted);
 }
 
+/* Small label indicating a reply (nested comment) */
+.reply-label {
+  display: inline-block;
+  background: rgba(255,255,255,0.03);
+  color: var(--muted);
+  border: 1px solid rgba(255,255,255,0.03);
+  padding: 2px 8px;
+  margin: 0 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  vertical-align: middle;
+}
+
+/* Reply arrow toggle for collapsing/expanding child replies */
+.reply-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin-right: 6px;
+  border-radius: 4px;
+}
+
+.comment-children { margin-top: 8px; margin-left: 12px; border-left: 2px solid rgba(255,255,255,0.02); padding-left: 10px; }
+
+.reply-arrow .reply-count { display: inline-block; margin-left: 6px; background: rgba(255,255,255,0.02); padding: 2px 6px; border-radius: 999px; font-size: 0.75rem; color: var(--muted); }
+.reply-arrow .arrow-symbol { font-weight: 600; }
+
 /* Author badge specific background to make info stand out slightly */
 .author-badge {
   background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.02));
@@ -419,7 +449,7 @@ img, video, iframe { max-width: 100%; height: auto; display: block; }
 
 #attachments .item {
   width: 100%;
-  max-width: 760px;
+  max-width: 100%;
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 12px;
@@ -427,8 +457,8 @@ img, video, iframe { max-width: 100%; height: auto; display: block; }
   box-shadow: 0 6px 18px rgba(0,0,0,0.35);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
+  align-items: stretch;
+  text-align: left;
   gap: 8px;
 }
 
@@ -648,6 +678,14 @@ img, video, iframe { max-width: 100%; height: auto; display: block; }
   html, body { overflow-x: hidden; min-width: 0; }
 }
 
+/* File preview styles for write page */
+.file-preview-card { border-radius: 10px; border: 1px solid var(--line); background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); }
+.file-preview-content { display:flex; flex-direction:column; gap:8px; align-items:center; justify-content:center; }
+.file-preview-content canvas, .file-preview-content img, .file-preview-content video { max-width: 100%; height: auto; display: block; }
+/* Ensure all preview child elements are centered even if they set width:100% */
+.file-preview-content > * { margin-left: auto; margin-right: auto; text-align: center; }
+.file-preview-img { box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+
 /* Page header cards: stack title and controls on small screens to avoid overflow */
 @media (max-width: 520px) {
   /* Target the generic card header pattern used on list pages (new posts, unanswered, etc.) */
@@ -727,6 +765,13 @@ img, video, iframe { max-width: 100%; height: auto; display: block; }
 
 @media (max-width: 520px) {
   #postsList a .truncate { font-size: 0.95rem; }
+}
+
+
+/* Make inline previews responsive on small screens */
+@media (max-width: 640px) {
+  .file-modal-iframe { height: 360px; }
+  .file-preview-content canvas, .file-preview-content img, .file-preview-content video, .file-modal-iframe { width: 100%; height: auto; }
 }
 
 

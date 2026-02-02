@@ -94,7 +94,7 @@ export async function wireHeaderUserMenu({
   logoutBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     await logout();
-    window.location.href = logoutRedirect;
+    window.location.reload();
   });
 
   document.addEventListener("click", (e) => {

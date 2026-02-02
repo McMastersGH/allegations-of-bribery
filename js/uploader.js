@@ -66,7 +66,7 @@ export async function uploadAndRecordCommentFiles({ commentId, authorId, files }
   for (const file of files) {
     if (!authorId) throw new Error('Missing authorId for file upload. Ensure the user is signed in.');
 
-    let safeName = (file.name || "").replace(/[^\\w.-]+/g, "_");
+    let safeName = (file.name || "").replace(/[^\w.-]+/g, "_");
     if (!safeName || /^\.+$/.test(safeName)) {
       safeName = `file_${Date.now()}`;
     }
