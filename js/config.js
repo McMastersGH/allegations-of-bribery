@@ -15,3 +15,9 @@ export const SITE_TIMEZONE = "America/New_York";
 export const ENABLE_ADS = true;
 export const ADS_PROVIDER = ""; // e.g. 'adsense'
 export const ADSENSE_CLIENT = "ca-pub-REPLACE_ME"; // set when using AdSense
+
+// Admin emails allowed to use client-side forum creation UI.
+// NOTE: This is only for the UI — enforce creation permissions server-side with RLS.
+export const ADMIN_EMAILS = [
+	// Example: 'admin@example.com'
+];

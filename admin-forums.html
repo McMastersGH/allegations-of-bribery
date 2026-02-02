@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin — Create Forum</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="bg-slate-900 text-slate-200">
+  <main class="max-w-2xl mx-auto p-6">
+    <h1 class="text-2xl font-semibold mb-4">Create New Forum</h1>
+
+    <div id="notAllowed" class="text-rose-300 hidden">You are not authorized to create forums.</div>
+
+    <form id="createForm" class="space-y-4">
+      <div>
+        <label class="block text-sm text-slate-300">Slug (lowercase, letters/numbers/dashes)</label>
+        <input id="slug" name="slug" class="w-full mt-1 p-2 bg-slate-800 border border-slate-700 rounded" />
+      </div>
+      <div>
+        <label class="block text-sm text-slate-300">Title</label>
+        <input id="title" name="title" class="w-full mt-1 p-2 bg-slate-800 border border-slate-700 rounded" />
+      </div>
+      <div>
+        <label class="block text-sm text-slate-300">Description</label>
+        <textarea id="description" name="description" class="w-full mt-1 p-2 bg-slate-800 border border-slate-700 rounded" rows="3"></textarea>
+      </div>
+
+      <div>
+        <button id="submitBtn" class="px-4 py-2 bg-sky-600 rounded text-white">Create Forum</button>
+      </div>
+
+      <div id="status" class="text-sm mt-2"></div>
+    </form>
+  </main>
+
+  <script type="module" src="/js/adminForums.js"></script>
+</body>
+</html>
