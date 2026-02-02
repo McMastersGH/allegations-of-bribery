@@ -94,7 +94,16 @@ export async function wireHeaderUserMenu({
   logoutBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     await logout();
-    window.location.reload();
+    try {
+      if (typeof window.location.replace === 'function') window.location.replace(window.location.href);
+      else window.location.reload();
+    } catch (e) {}
+    setTimeout(() => {
+      try {
+        if (typeof window.location.replace === 'function') window.location.replace(window.location.href);
+        else window.location.href = window.location.href;
+      } catch (e) {}
+    }, 150);
   });
 
   document.addEventListener("click", (e) => {

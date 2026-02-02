@@ -30,3 +30,4 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 export function getSupabaseClient() {
   return supabase;
 }
+// Note: do not expose the Supabase client globally in production.

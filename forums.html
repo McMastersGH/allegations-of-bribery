@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Forums — All</title>
+  <link rel="icon" href="./favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <script>
+    tailwind.config = { theme: { extend: { colors: { panel: "#111827", panel2: "#0b0e13", stroke: "#1f2933", page: "#0f1216" } } } };
+  </script>
+</head>
+<body class="bg-page text-slate-200">
+  <main class="mx-auto max-w-6xl px-4 py-6">
+    <div id="siteContainer"></div>
+    <section class="mt-6">
+      <h1 class="text-2xl font-semibold">Forums</h1>
+      <p class="mt-1 text-sm text-slate-400">Browse all forums on the site.</p>
+      <div id="forumsList" class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2"></div>
+    </section>
+  </main>
+
+  <script type="module">
+    import initShell from '/js/shell.js';
+    await initShell();
+    import '/js/forumsList.js';
+  </script>
+</body>
+</html>

@@ -97,13 +97,45 @@ export async function resendSignupEmail(email) {
 
 export async function logout() {
   const sb = getSupabaseClient();
-  const { error } = await sb.auth.signOut();
-  if (error) return { ok: false, error: error.message };
+  let signOutErr = null;
+  try {
+    const { error } = await sb.auth.signOut();
+    if (error) signOutErr = error;
+  } catch (e) {
+    signOutErr = e;
+  }
+
   try {
     if (typeof window !== 'undefined' && window.dispatchEvent) {
       window.dispatchEvent(new CustomEvent('signedOut'));
     }
   } catch (e) {}
+
+  // Attempt to immediately refresh the page so credentialed UI is cleared.
+  try {
+    if (typeof window !== 'undefined' && window.location) {
+      // Use location.replace which is more reliable in some browsers
+      try {
+        if (typeof window.location.replace === 'function') {
+          window.location.replace(window.location.href);
+        } else if (typeof window.location.reload === 'function') {
+          window.location.reload();
+        }
+      } catch (e) {
+        // ignore
+      }
+      // Timed fallback to ensure navigation happens even if the immediate
+      // call is ignored by the browser (observed in some Firefox configs).
+      setTimeout(() => {
+        try {
+          if (typeof window.location.replace === 'function') window.location.replace(window.location.href);
+          else window.location.href = window.location.href;
+        } catch (e) {}
+      }, 150);
+    }
+  } catch (e) {}
+
+  if (signOutErr) return { ok: false, error: signOutErr.message || String(signOutErr) };
   return { ok: true };
 }
 
@@ -264,8 +296,16 @@ export async function wireAuthButtons({
     logoutBtn.dataset.wired = "1";
     logoutBtn.addEventListener("click", async (e) => {
       e.preventDefault();
+      // Optimistically update UI immediately so credentialed controls are
+      // hidden even if navigation/reload doesn't happen in this browser.
+      try {
+        applyAuthUI({ session: null, loginLink, registerLink, logoutBtn, userBadge, userMenuBtn });
+      } catch (e) {}
+      try {
+        if (typeof window !== 'undefined' && window.dispatchEvent) window.dispatchEvent(new CustomEvent('signedOut'));
+      } catch (e) {}
+      // Finally, perform the actual sign-out which will also attempt reload/navigation.
       await logout();
-      window.location.href = logoutRedirect;
     });
   }
 

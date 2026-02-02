@@ -235,9 +235,17 @@ export async function updatePost(postId, updates) {
   return data;
 }
 
-export async function deletePost(postId) {
+export async function deletePost(postId, reason = null) {
   const sb = getSupabaseClient();
   if (!postId) throw new Error("deletePost: postId is required");
+  // Log deletion attempt (best-effort). Function runs as SECURITY DEFINER
+  try {
+    await sb.rpc('log_deletion', { p_entity_type: 'post', p_entity_id: normalizeId(postId), p_reason: reason });
+  } catch (e) {
+    // non-fatal, continue to attempt deletion
+    console.warn('log_deletion RPC failed:', e);
+  }
+
   const { data, error } = await sb
     .from("posts")
     .delete()
@@ -332,9 +340,15 @@ export async function updateComment(commentId, body) {
   return data;
 }
 
-export async function deleteComment(commentId) {
+export async function deleteComment(commentId, reason = null) {
   const sb = getSupabaseClient();
   if (!commentId) throw new Error("deleteComment: commentId is required");
+  try {
+    await sb.rpc('log_deletion', { p_entity_type: 'comment', p_entity_id: normalizeId(commentId), p_reason: reason });
+  } catch (e) {
+    console.warn('log_deletion RPC failed:', e);
+  }
+
   const { data, error } = await sb
     .from("comments")
     .delete()

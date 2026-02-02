@@ -1,5 +1,7 @@
 // js/forum.js
 import { listPosts } from "./blogApi.js";
+import { getSupabaseClient } from "./supabaseClient.js";
+import { deleteForum } from "./forumApi.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -84,6 +86,82 @@ document.addEventListener("DOMContentLoaded", async () => {
   const newBtn = $("newThreadBtn");
   if (newBtn) {
     newBtn.href = `./write.html?forum=${encodeURIComponent(slug)}`;
+  }
+
+  // Admin controls: delete forum (only visible to admins)
+  try {
+    const sb = getSupabaseClient();
+    const { data: isAdminData, error: isAdminErr } = await sb.rpc('is_admin');
+    const isAdmin = isAdminData === true || (Array.isArray(isAdminData) && isAdminData[0] === true);
+    if (isAdmin) {
+      const titleEl = $("forumTitle");
+      const flexRow = titleEl?.parentElement?.parentElement;
+      if (flexRow) {
+        const adminWrap = document.createElement('div');
+        adminWrap.id = 'forumAdminControls';
+        adminWrap.className = 'flex items-center gap-2';
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'rounded-md bg-rose-600 px-3 py-1 text-sm font-semibold text-white hover:bg-rose-500';
+        delBtn.textContent = 'Delete forum';
+
+        const confirmArea = document.createElement('div');
+        confirmArea.style.display = 'none';
+        confirmArea.className = 'ml-3';
+        confirmArea.innerHTML = `
+          <div class="mt-2">
+            <textarea id="deleteReason" rows="3" class="w-64 p-2 rounded border border-rose-600 bg-slate-900 text-rose-300" placeholder="Enter deletion reason (visible to admins)"></textarea>
+            <div class="mt-2 flex gap-2">
+              <button id="confirmDeleteBtn" class="px-3 py-1 rounded bg-rose-700 text-white">Confirm delete</button>
+              <button id="cancelDeleteBtn" class="px-3 py-1 rounded bg-slate-700 text-slate-200">Cancel</button>
+            </div>
+          </div>
+        `;
+
+        adminWrap.appendChild(delBtn);
+        adminWrap.appendChild(confirmArea);
+        flexRow.appendChild(adminWrap);
+
+        // If logout navigation doesn't occur (some browsers), listen for the
+        // global `signedOut` event and remove/hide admin controls immediately.
+        try {
+          window.addEventListener('signedOut', () => {
+            try { const el = document.getElementById('forumAdminControls'); if (el) el.remove(); } catch (e) {}
+          });
+        } catch (e) {}
+
+        delBtn.addEventListener('click', () => {
+          const showing = confirmArea.style.display === 'none';
+          confirmArea.style.display = showing ? 'block' : 'none';
+          delBtn.style.display = showing ? 'none' : 'inline-block';
+        });
+
+        confirmArea.addEventListener('click', async (ev) => {
+          const target = ev.target;
+          if (target && target.id === 'cancelDeleteBtn') {
+            confirmArea.style.display = 'none';
+            delBtn.style.display = 'inline-block';
+            return;
+          }
+          if (target && target.id === 'confirmDeleteBtn') {
+            const reason = document.getElementById('deleteReason')?.value || null;
+            target.disabled = true;
+            try {
+              setStatus('Deleting forum…');
+              await deleteForum(slug, reason);
+              // Redirect to forums list after deletion
+              window.location.href = './forums.html';
+            } catch (e) {
+              console.error('Delete forum failed', e);
+              setStatus('Failed to delete forum: ' + String(e), true);
+              target.disabled = false;
+            }
+          }
+        });
+      }
+    }
+  } catch (e) {
+    // ignore admin control errors
   }
 
   setStatus("Loading…");

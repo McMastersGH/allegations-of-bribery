@@ -4,7 +4,28 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Admin — Create Forum</title>
-  <link rel="stylesheet" href="/css/styles.css">
+
+  <!-- Favicon -->
+  <link rel="icon" href="./favicon.ico" />
+
+  <!-- Tailwind CDN (same as index.html) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/styles.css" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            panel: "#111827",
+            panel2: "#0b0e13",
+            stroke: "#1f2933",
+            page: "#0f1216"
+          }
+        }
+      }
+    }
+  </script>
 </head>
 <body class="bg-slate-900 text-slate-200">
   <main class="max-w-2xl mx-auto p-6">
@@ -14,12 +35,9 @@
 
     <form id="createForm" class="space-y-4">
       <div>
-        <label class="block text-sm text-slate-300">Slug (lowercase, letters/numbers/dashes)</label>
-        <input id="slug" name="slug" class="w-full mt-1 p-2 bg-slate-800 border border-slate-700 rounded" />
-      </div>
-      <div>
         <label class="block text-sm text-slate-300">Title</label>
         <input id="title" name="title" class="w-full mt-1 p-2 bg-slate-800 border border-slate-700 rounded" />
+        <div class="mt-1 text-xs text-slate-500">Slug will be auto-generated from the title.</div>
       </div>
       <div>
         <label class="block text-sm text-slate-300">Description</label>
@@ -34,6 +52,10 @@
     </form>
   </main>
 
-  <script type="module" src="/js/adminForums.js"></script>
+  <script type="module">
+    import initShell from '/js/shell.js';
+    await initShell();
+    import '/js/adminForums.js';
+  </script>
 </body>
 </html>

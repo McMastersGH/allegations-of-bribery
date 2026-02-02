@@ -21,7 +21,7 @@ export default async function initShell() {
       </button>
 
       <nav class="hidden items-center gap-5 text-sm text-slate-300 md:flex">
-        <a class="hover:text-white" href="./index.html">Forums</a>
+        <a class="hover:text-white" href="./forums.html">Forums</a>
         <a class="hover:text-white" href="#">Documents</a>
         <a class="hover:text-white" href="#">Cases</a>
       </nav>
@@ -38,6 +38,7 @@ export default async function initShell() {
         <a id="headerBack" class="rounded-md border border-stroke px-3 py-2 text-sm text-slate-200 hover:bg-slate-800" href="./index.html" style="display:none;">← Back</a>
 
         <a id="homeLink" href="./index.html" class="rounded-md border border-stroke px-3 py-2 text-sm text-slate-200 hover:bg-slate-800">Home</a>
+        <a id="adminForumsLink" href="./admin-forums.html" class="rounded-md border border-stroke px-3 py-2 text-sm text-slate-200 hover:bg-slate-800" style="display:none;">Admin</a>
         <a id="accountHeaderLink" href="./account.html" class="rounded-md border border-stroke px-3 py-2 text-sm text-slate-200 hover:bg-slate-800" style="display:none;">Account</a>
 
         <a id="loginLink" href="./login.html" class="rounded-md bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Log in</a>
@@ -129,6 +130,21 @@ export default async function initShell() {
       // Header account link (show only to signed-in users)
       const acc = document.getElementById('accountHeaderLink');
       if (acc) acc.style.display = visible ? '' : 'none';
+      // Admin link: show only when signed in AND server-side is_admin() returns true
+      const adminLink = document.getElementById('adminForumsLink');
+      if (adminLink) {
+        if (!visible) {
+          adminLink.style.display = 'none';
+        } else {
+          try {
+            const sb = getSupabaseClient();
+            const { data, error } = await sb.rpc('is_admin');
+            adminLink.style.display = (error || !data) ? 'none' : '';
+          } catch (e) {
+            adminLink.style.display = 'none';
+          }
+        }
+      }
     } catch (e) {
       // ignore
     }
@@ -140,6 +156,13 @@ export default async function initShell() {
     try { sb.auth.onAuthStateChange(() => updateYourThreadsVisibility()); } catch {
       // ignore
     }
+    // If logout navigation fails in some browsers, a `signedOut` event is
+    // dispatched from `logout()`; respond by updating header UI immediately.
+    try {
+      window.addEventListener('signedOut', () => {
+        try { updateYourThreadsVisibility(); } catch (e) {}
+      });
+    } catch (e) {}
   } catch (e) {
     // ignore
   }
