@@ -7,6 +7,14 @@
   --line:#243047;
   --accent:#3b82f6;
   --danger:#ef4444;
+  /* User content color palette */
+  --user-text-post: #ffffff; /* main post text (bright for readability) */
+  --user-text-comment-odd: #f0f6ff; /* top-level comment odd */
+  --user-text-comment-even: #e6eefb; /* top-level comment even */
+  --user-bg-comment-odd: rgba(255,255,255,0.02);
+  --user-bg-comment-even: rgba(255,255,255,0.01);
+  --user-bg-reply-odd: rgba(99,102,241,0.02); /* subtle bluish tint for nested replies */
+  --user-bg-reply-even: rgba(255,255,255,0.006);
 }
 
 *{box-sizing:border-box}
@@ -67,10 +75,53 @@ header .text-lg {
   }
 }
 
+/* Ensure main layout remains centered and cannot expand past the intended content width.
+   This prevents late-loading media or injected content from widening the page. */
+main.mx-auto, .container, .grid.max-w-6xl, main {
+  max-width: 1100px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Extra guard: constrain the posts list column so long titles or content don't push layout */
+#postsList, #postsList > div, #postsList a {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow-wrap: anywhere !important;
+}
+
+/* Constrain header/slot video to a fixed area to avoid layout reflow when it loads */
+#ad-slot video, .ad-stub video, #ad-slot > div > video {
+  width: 100% !important;
+  height: 180px !important;
+  max-height: 220px !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+
+/* Ensure ad containers reserve space and don't push layout when media loads */
+#ad-slot, #ad-slot .ad-stub, .ad-slot { 
+  min-height: 180px; 
+  box-sizing: border-box; 
+}
+
 label{display:block;margin:10px 0 6px;color:var(--muted);font-size:13px}
 .small{color:var(--muted);font-size:13px;line-height:1.35}
 .h1{font-size:28px;margin:10px 0 6px}
 .h2{font-size:18px;margin:8px 0 6px}
+
+/* Thread / Post title styling */
+#postTitle {
+  font-size: 32px;
+  line-height: 1.12;
+  font-weight: 700;
+  margin: 8px 0 6px;
+  color: var(--text) !important;
+}
+
+@media (max-width: 640px) {
+  #postTitle { font-size: 22px; }
+}
 .hr{height:1px;background:var(--line);margin:14px 0}
 .postList{display:grid;gap:12px}
 .postItem{padding:14px;border-radius:14px;border:1px solid var(--line);background:rgba(18,24,37,.55)}
@@ -107,6 +158,8 @@ body {
 
   /* Resize image */
   background-size: 40vw auto;
+  /* Prevent horizontal page shifting from visual overflow */
+  overflow-x: hidden;
 }
 
 
@@ -138,6 +191,51 @@ body::before {
 .small { font-size: .92rem; }
 
 .btn.disabled, .btn:disabled { opacity: .55; cursor: not-allowed; }
+
+/* Replies toggle styling (distinct, with arrow icon) */
+.reply-toggle-text {
+  color: var(--accent); /* use site accent (blue) */
+  font-size: 0.92rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  opacity: 0.98;
+}
+.reply-toggle-text:hover { color: color-mix(in srgb, var(--accent) 85%, white); }
+.reply-toggle-icon {
+  color: var(--accent);
+  font-weight: 700;
+  display: inline-block;
+  width: 1.1em;
+  text-align: center;
+}
+
+/* Make the toggle arrow match the visual weight/size of the reply arrow */
+.reply-toggle-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 22px !important;
+  height: 22px !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  margin-right: 0 !important;
+}
+
+/* Force larger arrow inside comment boxes (high specificity to override other rules) */
+#comments .item .reply-toggle-icon {
+  width: 20px !important;
+  height: 20px !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transform: none !important;
+}
+#comments .item .reply-toggle-label { color: var(--accent) !important; font-weight:600 !important; font-size:0.95rem !important; }
+.reply-toggle-label { color: inherit; }
 
 /* ===== Under Construction Overlay ===== */
 .uc-overlay {
@@ -360,6 +458,37 @@ img, video, iframe { max-width: 100%; height: auto; display: block; }
   z-index: 99999;
   padding: 20px;
 }
+
+/* Media overflow guard: prevent late-loading media from widening the page */
+/* Media overflow guard (scoped): prevent late-loading media inside posts/ads
+   from widening the page while leaving header/brand images alone. */
+.postItem img, .postItem video, .postItem iframe,
+.post-content img, #postsList img, #postsList video, #postsList iframe,
+#ad-slot img, #ad-slot video, .ad-stub img, .ad-stub video {
+  max-width: 100% !important;
+  width: auto !important;
+  height: auto !important;
+  display: block !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  min-width: 0 !important;
+}
+
+/* Stronger defaults for ad/header videos inside ad-slot only */
+#ad-slot video, .ad-stub video, #postsList video, .postItem video {
+  max-width: 100% !important;
+  width: 100% !important;
+  height: auto !important;
+  object-fit: cover !important;
+  min-width: 0 !important;
+  display: block !important;
+}
+
+/* Generic guard for flex/overflow: allow brand/header images to keep their intended sizes */
+*:where(:not(.brand *) ) { min-width: 0; }
+
+/* If a widening issue remains, next step: add a MutationObserver in `js/index.js`
+   to detect and log elements whose scrollWidth > clientWidth as they change. */
 .file-modal{
   max-width: 980px;
   width: 100%;
@@ -384,16 +513,47 @@ img, video, iframe { max-width: 100%; height: auto; display: block; }
 
 /* Comments: make each comment visually distinct for readability */
 #comments .item {
-  border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.008));
+  /* stronger off-white border and soft panel background for readability */
+  border: 1px solid rgba(255,255,240,0.14) !important;
+  background: linear-gradient(180deg, rgba(255,255,240,0.03), rgba(255,255,240,0.015)) !important;
   padding: 12px;
   border-radius: 10px;
   margin-bottom: 10px;
+  color: var(--text);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
 }
+
+/* DEBUG outline removed */
 
 #comments .item .muted {
   color: var(--muted);
 }
+
+/* User content readability tweaks: clearer text color for post body and
+   alternating colors for comments + nested replies for visual separation */
+#postContent .prose { color: var(--user-text-post) !important; }
+#postContent .prose a { color: var(--accent) !important; }
+#postBody, #postBody * { color: var(--user-text-post) !important; }
+
+/* Top-level comments alternate background + text color */
+#comments > .item:nth-child(odd) { background: var(--user-bg-comment-odd) !important; }
+#comments > .item:nth-child(even) { background: var(--user-bg-comment-even) !important; }
+#comments > .item:nth-child(odd), #comments > .item:nth-child(odd) * { color: var(--user-text-comment-odd) !important; }
+#comments > .item:nth-child(even), #comments > .item:nth-child(even) * { color: var(--user-text-comment-even) !important; }
+
+/* Replies inside .comment-children also alternate to help trace threads */
+#comments .comment-children > .item:nth-child(odd) { background: var(--user-bg-reply-odd) !important; }
+#comments .comment-children > .item:nth-child(even) { background: var(--user-bg-reply-even) !important; }
+#comments .comment-children > .item:nth-child(odd), #comments .comment-children > .item:nth-child(odd) * { color: var(--user-text-comment-odd) !important; }
+#comments .comment-children > .item:nth-child(even), #comments .comment-children > .item:nth-child(even) * { color: var(--user-text-comment-even) !important; }
+
+/* Stronger accents and clearer text for comments and replies */
+#comments > .item { border-left: 6px solid rgba(255,255,240,0.12) !important; }
+#comments .item.reply, #comments .comment-children > .item { border-left: 6px solid rgba(59,130,246,0.14) !important; }
+#comments .item, #comments .item * { color: var(--text) !important; }
+#comments .item .prose a { color: var(--accent) !important; }
+#comments .item { background-clip: padding-box; }
+
 
 /* Small label indicating a reply (nested comment) */
 .reply-label {
@@ -407,6 +567,15 @@ img, video, iframe { max-width: 100%; height: auto; display: block; }
   font-size: 0.75rem;
   vertical-align: middle;
 }
+
+/* Ensure inline reply toggle is visibly blue inside comment boxes (override global comment color) */
+#comments .item .reply-toggle-text,
+#comments .item .reply-toggle-text .reply-toggle-icon,
+#comments .item .reply-toggle-text .reply-toggle-label {
+  color: var(--accent) !important;
+  font-weight: 600 !important;
+}
+#comments .item .reply-toggle-text:hover { color: color-mix(in srgb, var(--accent) 85%, white) !important; }
 
 /* Reply arrow toggle for collapsing/expanding child replies */
 .reply-arrow {
@@ -461,6 +630,21 @@ img, video, iframe { max-width: 100%; height: auto; display: block; }
   text-align: left;
   gap: 8px;
 }
+
+/* Comment file entries should visually match attachment cards (hidden filename/info still used) */
+.comment-files > div {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.008));
+  margin-top: 6px;
+}
+
+/* Smooth reveal for file info */
+.file-info { transition: max-height 220ms ease, opacity 180ms ease; overflow: hidden; }
+.file-info[style*="display:none"] { max-height: 0; opacity: 0; }
+.file-info[style*="display:block"] { max-height: 240px; opacity: 1; }
 
 #attachments .item a { color: var(--accent); }
 

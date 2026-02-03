@@ -104,14 +104,40 @@ async function handlePublish({ publish }) {
       return;
     }
 
-    const data = await createPost({
+    // Add logging and a timeout wrapper to diagnose hangs seen with
+    // certain post bodies (helps determine if createPost is pending).
+    console.log("Publishing: starting createPost", {
+      forum_slug: forum,
+      titleLength: String(title || '').length,
+      bodyLength: String(body || '').length,
+      is_anonymous: !!isAnonymous,
+    });
+
+    const createPayload = {
       forum_slug: forum,
       title,
       body,
       author_id: session.user.id,
       status: publish ? "published" : "draft",
       is_anonymous: !!isAnonymous,
-    });
+    };
+
+    const timeoutMs = 15000;
+    const createPromise = createPost(createPayload);
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`createPost: timed out after ${timeoutMs}ms`)), timeoutMs)
+    );
+
+    let data;
+    try {
+      data = await Promise.race([createPromise, timeoutPromise]);
+    } catch (ce) {
+      console.error("Publishing: createPost failed or timed out", ce);
+      // Rethrow so outer catch will show the error in the UI and re-enable the form
+      throw ce;
+    }
+
+    console.log("Publishing: createPost succeeded", data);
 
     // If there are attachments, upload and record them
     if (files.length) {

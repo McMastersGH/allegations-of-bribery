@@ -42,7 +42,7 @@ export async function listPosts({
 
   const source = anon ? 'public_posts' : 'posts';
   const cols = anon
-    ? 'id, title, created_at, display_name, forum_slug, status, is_anonymous'
+    ? 'id, title, created_at, display_name, forum_slug, status, is_anonymous, views_count'
     : 'id, title, created_at, display_name, forum_slug, status, is_anonymous, author_id';
 
   let q = sb.from(source).select(cols).order('created_at', { ascending: false }).limit(limit);
@@ -108,7 +108,7 @@ export async function getPostById(id) {
     const colsAuth = 'id, title, body, status, created_at, display_name, forum_slug, is_anonymous, author_id';
     const colsAnon = 'id, title, body, status, created_at, display_name, forum_slug, is_anonymous';
     const source = anon ? 'public_posts' : 'posts';
-    const cols = anon ? colsAnon : colsAuth;
+    const cols = anon ? colsAnon + ', views_count' : colsAuth + ', views_count';
     const res = await sb.from(source).select(cols).eq('id', cleaned).maybeSingle();
     data = res.data; error = res.error;
   } catch (e) {

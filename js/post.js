@@ -1,6 +1,7 @@
 // js/post.js
 import { getPostById, listComments, addComment, listPostFiles, listCommentFiles, updateComment, deleteComment, updatePost, deletePost, deletePostFile, deleteCommentFile } from "./blogApi.js";
 import { getPublicUrl } from "./storageApi.js";
+import { getSupabaseClient } from "./supabaseClient.js";
 import { getSession, wireAuthButtons, getMyAuthorStatus, setMyAnonymity } from "./auth.js";
 import { uploadAndRecordFiles, uploadAndRecordCommentFiles } from "./uploader.js";
 import { bucketExists } from "./storageApi.js";
@@ -396,8 +397,10 @@ function getId() {
 
 async function renderFiles(postId) {
   if (!attachments) return;
+  console.log('renderFiles called for postId=', postId);
   attachments.innerHTML = "";
   const files = await listPostFiles(postId);
+  console.log('found files:', files && files.length);
 
   // Determine whether current user is the post author so we can show upload controls
   const session = await getSession();
@@ -506,16 +509,16 @@ async function renderFiles(postId) {
     const el = document.createElement("div");
     el.className = "item";
     if (url) {
+      // Do not show filename/link inline; reveal filename & metadata via Info
       el.innerHTML = `
-      <div><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(f.original_name)}</a></div>
-      <div class="muted">${escapeHtml(f.mime_type || "file")} • ${escapeHtml(fmtDate(f.created_at))}</div>
+      <div class="muted small">Attachment available</div>
+      <div class="file-info muted" style="display:none; margin-top:6px;">${escapeHtml(f.original_name)} • ${escapeHtml(f.mime_type || "file")} • ${escapeHtml(fmtDate(f.created_at))}</div>
     `;
     } else {
-      // For anonymous users the storage path is intentionally hidden. Show
-      // filename and a gentle prompt to sign in for access.
+      // For anonymous users the storage path is hidden. Keep only sign-in prompt; filename in Info
       el.innerHTML = `
-      <div>${escapeHtml(f.original_name)} <span class="muted">(preview unavailable)</span></div>
-      <div class="muted">${escapeHtml(f.mime_type || "file")} • ${escapeHtml(fmtDate(f.created_at))}</div>
+      <div class="muted small">Attachment available</div>
+      <div class="file-info muted" style="display:none; margin-top:6px;">${escapeHtml(f.original_name)} • ${escapeHtml(f.mime_type || "file")} • ${escapeHtml(fmtDate(f.created_at))}</div>
       <div class="mt-2 text-xs text-slate-400">Sign in to view or download attachments.</div>
     `;
     }
@@ -527,6 +530,19 @@ async function renderFiles(postId) {
       // Determine if this is media: we hide download/open controls for media
       const _mime = (f.mime_type || '').toLowerCase();
       const _isMedia = _mime.startsWith('video/') || _mime.startsWith('audio/');
+
+      // Add Info button to toggle file metadata visibility
+      const infoBtn = document.createElement('button');
+      infoBtn.className = 'btn btn-sm';
+      infoBtn.style.marginRight = '8px';
+      infoBtn.textContent = 'Info';
+      infoBtn.onclick = (e) => {
+        e.preventDefault();
+        const info = el.querySelector('.file-info');
+        if (!info) return;
+        info.style.display = (info.style.display === 'none' || !info.style.display) ? 'block' : 'none';
+      };
+      controls.appendChild(infoBtn);
 
       if (!_isMedia) {
         if (!__isMobileDevice) {
@@ -572,7 +588,7 @@ async function renderFiles(postId) {
             window.open(url, '_blank', 'noopener');
           }
         };
-        controls.appendChild(downloadBtn);
+            controls.appendChild(downloadBtn);
       }
 
       el.appendChild(controls);
@@ -887,8 +903,10 @@ async function renderComments(post) {
     const commenter = c.is_anonymous ? "Anonymous" : (c.display_name || "Member");
 
     const isReply = depth > 0;
+    // Only show the inline "Reply" label for replies when a user is signed in.
+    const showReplyLabel = isReply && !!currentUserId;
     el.innerHTML = `
-      <div class="muted"><b>${escapeHtml(commenter)}</b> ${isReply ? '<span class="reply-label">Reply</span>' : ''} • ${escapeHtml(fmtDate(c.created_at))}</div>
+      <div class="muted"><b>${escapeHtml(commenter)}</b> ${showReplyLabel ? '<span class="reply-label">Reply</span>' : ''} • ${escapeHtml(fmtDate(c.created_at))}</div>
     `;
     const bodyEl = createLinkifiedProse(c.body || '');
     bodyEl.style.marginTop = '8px';
@@ -914,14 +932,28 @@ async function renderComments(post) {
           const fileEl = document.createElement('div');
           fileEl.className = 'muted';
           fileEl.style.marginTop = '6px';
+          // Show a small visible placeholder so user can confirm attachments exist
           if (url) {
-            fileEl.innerHTML = `<div><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(f.original_name)}</a> • ${escapeHtml(fmtDate(f.created_at))}</div>`;
+            fileEl.innerHTML = `<div class="muted small">Attachment available</div><div class="file-info muted" style="display:none; margin-top:6px;">${escapeHtml(f.original_name)} • ${escapeHtml(f.mime_type || "file")} • ${escapeHtml(fmtDate(f.created_at))}</div>`;
           } else {
-            fileEl.innerHTML = `<div>${escapeHtml(f.original_name)} <span class="muted">(unavailable)</span> • ${escapeHtml(fmtDate(f.created_at))}</div>`;
+            fileEl.innerHTML = `<div class="muted small">Attachment available</div><div class="file-info muted" style="display:none; margin-top:6px;">${escapeHtml(f.original_name)} • ${escapeHtml(f.mime_type || "file")} • ${escapeHtml(fmtDate(f.created_at))}</div>`;
           }
 
           const ctrls = document.createElement('div');
           ctrls.style.marginTop = '6px';
+
+          // Info toggle for comment file metadata
+          const infoBtn = document.createElement('button');
+          infoBtn.className = 'btn btn-sm';
+          infoBtn.style.marginRight = '8px';
+          infoBtn.textContent = 'Info';
+          infoBtn.onclick = (e) => {
+            e.preventDefault();
+            const info = fileEl.querySelector('.file-info');
+            if (!info) return;
+            info.style.display = (info.style.display === 'none' || !info.style.display) ? 'block' : 'none';
+          };
+          ctrls.appendChild(infoBtn);
 
           const _cmime = (f.mime_type || '').toLowerCase();
           const _cisMedia = _cmime.startsWith('video/') || _cmime.startsWith('audio/');
@@ -1233,18 +1265,51 @@ async function renderComments(post) {
     if (c.children && c.children.length) {
       try {
         const headerDiv = el.firstElementChild || el.querySelector('div');
-        const arrowBtn = document.createElement('button');
-        arrowBtn.className = 'reply-arrow';
-        arrowBtn.type = 'button';
-        arrowBtn.innerHTML = '<span class="arrow-symbol">▶</span><span class="reply-count">' + (c.children.length || 0) + '</span>';
-        arrowBtn.title = 'Show replies';
-        arrowBtn.style.marginRight = '8px';
-        arrowBtn.style.background = 'transparent';
-        arrowBtn.style.border = 'none';
-        arrowBtn.style.color = 'var(--muted)';
+        // Small inline text toggle (not a button) that stays inside the comment box
+        const arrowBtn = document.createElement('span');
+        arrowBtn.className = 'reply-toggle-text';
+        arrowBtn.setAttribute('role', 'button');
+        const _count = (c.children && c.children.length) ? c.children.length : 0;
+        // Render as inline text with arrow glyph and label
+        arrowBtn.setAttribute('aria-expanded', 'false');
+        arrowBtn.title = `Show ${_count} ${_count === 1 ? 'reply' : 'replies'}`;
+        try {
+          const lbl = `${_count} ${_count === 1 ? 'Reply' : 'Replies'}`;
+          arrowBtn.innerHTML = `<span class="reply-toggle-icon">▶</span><span class="reply-toggle-label" style="margin-left:6px">${lbl}</span>`;
+        } catch (e) {
+          arrowBtn.textContent = `${_count} ${_count === 1 ? 'Reply' : 'Replies'}`;
+        }
         arrowBtn.style.cursor = 'pointer';
-        arrowBtn.style.fontSize = '1rem';
-        if (headerDiv) headerDiv.prepend(arrowBtn);
+        arrowBtn.style.fontSize = '0.95rem';
+        // Right-justify: make the header a flex container and append the button
+        if (headerDiv) {
+          try {
+            // Build a new header container so we don't mutate the original
+            // element unexpectedly (which caused layout/overflow issues).
+            const hdr = document.createElement('div');
+            hdr.style.display = 'flex';
+            hdr.style.justifyContent = 'space-between';
+            hdr.style.alignItems = 'center';
+
+            const leftWrap = document.createElement('div');
+            leftWrap.style.flex = '1 1 auto';
+            // Move existing header content into the left wrapper
+            while (headerDiv.firstChild) leftWrap.appendChild(headerDiv.firstChild);
+
+            // Prevent label wrapping and keep it inline inside the left column
+            try {
+              arrowBtn.style.whiteSpace = 'nowrap';
+              arrowBtn.style.display = 'inline-flex';
+              arrowBtn.style.alignItems = 'center';
+              arrowBtn.style.marginLeft = '12px';
+            } catch (e) {}
+
+            leftWrap.appendChild(arrowBtn);
+            hdr.appendChild(leftWrap);
+            // Replace the old headerDiv with our new structured header
+            headerDiv.replaceWith(hdr);
+          } catch (e) {}
+        }
 
         const childrenWrap = document.createElement('div');
         childrenWrap.className = 'comment-children';
@@ -1252,6 +1317,7 @@ async function renderComments(post) {
         el.appendChild(childrenWrap);
 
         arrowBtn.onclick = async () => {
+          const count = (c.children && c.children.length) ? c.children.length : 0;
           if (childrenWrap.style.display === 'none') {
             // Render children into the collapsible container if not already
             if (!childrenWrap.hasChildNodes()) {
@@ -1260,12 +1326,22 @@ async function renderComments(post) {
               }
             }
             childrenWrap.style.display = '';
-            arrowBtn.innerHTML = '<span class="arrow-symbol">▼</span><span class="reply-count">' + (c.children.length || 0) + '</span>';
-            arrowBtn.title = 'Hide replies';
+            arrowBtn.setAttribute('aria-expanded', 'true');
+            arrowBtn.title = `Hide ${count} ${count === 1 ? 'reply' : 'replies'}`;
+            try {
+              arrowBtn.innerHTML = `<span class="reply-toggle-icon">▾</span><span class="reply-toggle-label" style="margin-left:6px">Hide ${count} ${count === 1 ? 'Reply' : 'Replies'}</span>`;
+            } catch (e) {
+              arrowBtn.textContent = `Hide ${count} ${count === 1 ? 'Reply' : 'Replies'}`;
+            }
           } else {
             childrenWrap.style.display = 'none';
-            arrowBtn.innerHTML = '<span class="arrow-symbol">▶</span><span class="reply-count">' + (c.children.length || 0) + '</span>';
-            arrowBtn.title = 'Show replies';
+            arrowBtn.setAttribute('aria-expanded', 'false');
+            arrowBtn.title = `Show ${count} ${count === 1 ? 'reply' : 'replies'}`;
+            try {
+              arrowBtn.innerHTML = `<span class="reply-toggle-icon">▶</span><span class="reply-toggle-label" style="margin-left:6px">${count} ${count === 1 ? 'Reply' : 'Replies'}</span>`;
+            } catch (e) {
+              arrowBtn.textContent = `${count} ${count === 1 ? 'Reply' : 'Replies'}`;
+            }
           }
         };
       } catch (e) {
@@ -1550,6 +1626,51 @@ document.addEventListener("DOMContentLoaded", async () => {
       // Render author badge (if any) after the body is inserted
       try { renderAuthorBadge(post, postAuthorProfile); } catch (e) { /* ignore */ }
     }
+
+    // Increment view count (best-effort). Limit increments to once per hour
+    // per client to reduce spammy repeated increments on refresh.
+    (async () => {
+      try {
+        const id = getId();
+        if (!id) return;
+        const key = `viewed_post_${id}`;
+        const raw = localStorage.getItem(key);
+        const last = raw ? Number(raw) : 0;
+        const now = Date.now();
+        const HOUR = 1000 * 60 * 60;
+        if (now - last < HOUR) return; // already counted recently
+
+        const sb = getSupabaseClient();
+        try {
+          let resp;
+          try {
+            resp = await sb.rpc('increment_post_view', { p_post_id: id });
+            console.debug('increment_post_view ok:', resp);
+            localStorage.setItem(key, String(now));
+          } catch (e1) {
+            console.warn('increment_post_view failed (p_post_id):', e1?.message || e1);
+            // Try alternative param name in case the DB or client expects a different key
+            try {
+              resp = await sb.rpc('increment_post_view', { post_id: id });
+              console.debug('increment_post_view ok (post_id):', resp);
+              localStorage.setItem(key, String(now));
+            } catch (e2) {
+              console.warn('increment_post_view failed (post_id):', e2?.message || e2);
+              // Try positional argument as a last resort
+              try {
+                resp = await sb.rpc('increment_post_view', id);
+                console.debug('increment_post_view ok (positional):', resp);
+                localStorage.setItem(key, String(now));
+              } catch (e3) {
+                console.error('increment_post_view all attempts failed:', e3?.message || e3);
+              }
+            }
+          }
+        } catch (e) {
+          console.error('increment_post_view unexpected error:', e?.message || e);
+        }
+      } catch (e) {}
+    })();
 
     // If current user is post author, show Edit/Delete controls
     try {

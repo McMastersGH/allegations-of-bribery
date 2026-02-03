@@ -128,101 +128,24 @@
         </div>
       </div>
 
-      <!-- Section: General Discussion -->
+      <!-- Section: Most Activity Area -->
       <div class="rounded-lg border border-stroke bg-panel2 p-5">
         <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-slate-200">General Discussion</h2>
+          <h2 id="mostActivityHeading" class="text-sm font-semibold text-slate-200">Most Activity Area</h2>
           <a class="text-sm text-slate-400 hover:text-slate-200" href="#">View all</a>
         </div>
 
-        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <!-- Card -->
-          <a href="forum.html?forum=general-topics"
-             class="group rounded-lg border border-stroke bg-panel p-4 transition hover:bg-slate-800">
-            <div class="flex items-start gap-3">
-              <div class="mt-1 flex h-9 w-9 items-center justify-center rounded-md bg-slate-700 text-slate-200">
-                <span class="text-xs font-bold">GT</span>
-              </div>
-              <div class="min-w-0">
-                <div class="flex items-center justify-between gap-3">
-                  <h3 class="truncate text-sm font-semibold group-hover:text-white">General Topics</h3>
-                  <span class="shrink-0 text-xs text-slate-500">View</span>
-                </div>
-                <p class="mt-1 line-clamp-2 text-xs text-slate-400">
-                  Open discussion of allegations, investigations, and site updates.
-                </p>
-                <div class="mt-3 flex items-center gap-4 text-xs text-slate-500">
-                  <span>Threads: 0</span><span>Comments: 0</span>
-                </div>
-              </div>
+        <div class="mt-4">
+          <div id="postsControls" class="flex items-center justify-between gap-3">
+            <div class="text-xs text-slate-400">Showing threads sorted by recent activity</div>
+            <div>
+              <input id="searchInput" class="input" placeholder="Search titles" style="width:220px" />
+              <button id="refreshBtn" class="btn btn-sm" style="margin-left:8px">Refresh</button>
             </div>
-          </a>
+          </div>
 
-          <!-- Card -->
-          <a href="forum.html?forum=union-matters"
-             class="group rounded-lg border border-stroke bg-panel p-4 transition hover:bg-slate-800">
-            <div class="flex items-start gap-3">
-              <div class="mt-1 flex h-9 w-9 items-center justify-center rounded-md bg-slate-700 text-slate-200">
-                <span class="text-xs font-bold">UM</span>
-              </div>
-              <div class="min-w-0">
-                <div class="flex items-center justify-between gap-3">
-                  <h3 class="truncate text-sm font-semibold group-hover:text-white">Union Matters</h3>
-                  <span class="shrink-0 text-xs text-slate-500">View</span>
-                </div>
-                <p class="mt-1 line-clamp-2 text-xs text-slate-400">
-                  Discuss union organizing, labor disputes, contracts, and member issues.
-                </p>
-                <div class="mt-3 flex items-center gap-4 text-xs text-slate-500">
-                  <span>Threads: 0</span><span>Comments: 0</span>
-                </div>
-              </div>
-            </div>
-          </a>
-
-          <!-- Card -->
-          <a href="forum.html?forum=questions-and-answers"
-             class="group rounded-lg border border-stroke bg-panel p-4 transition hover:bg-slate-800">
-            <div class="flex items-start gap-3">
-              <div class="mt-1 flex h-9 w-9 items-center justify-center rounded-md bg-slate-700 text-slate-200">
-                <span class="text-xs font-bold">QA</span>
-              </div>
-              <div class="min-w-0">
-                <div class="flex items-center justify-between gap-3">
-                  <h3 class="truncate text-sm font-semibold group-hover:text-white">Questions & Answers</h3>
-                  <span class="shrink-0 text-xs text-slate-500">View</span>
-                </div>
-                <p class="mt-1 line-clamp-2 text-xs text-slate-400">
-                  Ask for clarification, document analysis, and procedural guidance.
-                </p>
-                <div class="mt-3 flex items-center gap-4 text-xs text-slate-500">
-                  <span>Threads: 0</span><span>Comments: 0</span>
-                </div>
-              </div>
-            </div>
-          </a>
-
-          <!-- Card -->
-          <a href="forum.html?forum=off-topic"
-             class="group rounded-lg border border-stroke bg-panel p-4 transition hover:bg-slate-800">
-            <div class="flex items-start gap-3">
-              <div class="mt-1 flex h-9 w-9 items-center justify-center rounded-md bg-slate-700 text-slate-200">
-                <span class="text-xs font-bold">OT</span>
-              </div>
-              <div class="min-w-0">
-                <div class="flex items-center justify-between gap-3">
-                  <h3 class="truncate text-sm font-semibold group-hover:text-white">Off-topic</h3>
-                  <span class="shrink-0 text-xs text-slate-500">View</span>
-                </div>
-                <p class="mt-1 line-clamp-2 text-xs text-slate-400">
-                  Anything not directly related to cases, filings, or records.
-                </p>
-                <div class="mt-3 flex items-center gap-4 text-xs text-slate-500">
-                  <span>Threads: 0</span><span>Comments: 0</span>
-                </div>
-              </div>
-            </div>
-          </a>
+          <div id="emptyState" class="mt-4 muted">No threads found.</div>
+          <div id="postsList" class="mt-4"></div>
         </div>
       </div>
 
@@ -327,6 +250,12 @@
       await populateForumCounts();
     } catch (e) {
       // silently ignore forum counts errors in production
+    }
+    // Load page-specific module to render the Most Activity Area
+    try {
+      await import('./js/index.js');
+    } catch (e) {
+      console.error('Failed to load page module ./js/index.js:', e);
     }
   </script>
 
