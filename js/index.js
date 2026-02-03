@@ -15,7 +15,6 @@ async function initIndexModule() {
   // Everything below is optional rendering; guard it so missing elements do not crash the module.
   const postsList = document.getElementById("postsList");
   const emptyState = document.getElementById("emptyState");
-  const searchInput = document.getElementById("searchInput");
   const refreshBtn = document.getElementById("refreshBtn");
   const yearEl = document.getElementById("year");
 
@@ -103,8 +102,7 @@ async function initIndexModule() {
     // If the page doesn’t have the blog list UI, do nothing (but auth buttons still work).
     if (!postsList || !emptyState) return;
 
-    const search = (searchInput?.value || "").trim();
-    const posts = await listPosts({ limit: 50, search, publishedOnly: true });
+    const posts = await listPosts({ limit: 50, publishedOnly: true });
 
     // Diagnostic logging to help debug empty-state issues (use console.log so it's visible)
     try {
@@ -145,11 +143,6 @@ async function initIndexModule() {
   }
 
   if (refreshBtn) refreshBtn.addEventListener("click", load);
-  if (searchInput) {
-    searchInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") load();
-    });
-  }
 
   // Load posts if the UI exists
   try {

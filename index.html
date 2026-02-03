@@ -128,19 +128,18 @@
         </div>
       </div>
 
-      <!-- Section: Most Activity Area -->
+      <!-- Section: Most Viewed Area -->
       <div class="rounded-lg border border-stroke bg-panel2 p-5">
         <div class="flex items-center justify-between">
-          <h2 id="mostActivityHeading" class="text-sm font-semibold text-slate-200">Most Activity Area</h2>
+          <h2 id="mostActivityHeading" class="text-sm font-semibold text-slate-200">Most Viewed</h2>
           <a class="text-sm text-slate-400 hover:text-slate-200" href="#">View all</a>
         </div>
 
         <div class="mt-4">
-          <div id="postsControls" class="flex items-center justify-between gap-3">
-            <div class="text-xs text-slate-400">Showing threads sorted by recent activity</div>
+            <div id="postsControls" class="flex items-center justify-between gap-3">
+            <div class="text-xs text-slate-400">Showing threads sorted by most views</div>
             <div>
-              <input id="searchInput" class="input" placeholder="Search titles" style="width:220px" />
-              <button id="refreshBtn" class="btn btn-sm" style="margin-left:8px">Refresh</button>
+              <button id="refreshBtn" class="btn btn-sm">Refresh</button>
             </div>
           </div>
 
@@ -251,7 +250,7 @@
     } catch (e) {
       // silently ignore forum counts errors in production
     }
-    // Load page-specific module to render the Most Activity Area
+    // Load page-specific module to render the Most Viewed Area
     try {
       await import('./js/index.js');
     } catch (e) {

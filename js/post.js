@@ -34,6 +34,25 @@ const __isMobileDevice = (() => {
   } catch (e) { return false; }
 })();
 
+// On mobile, some storage providers send a Content-Disposition: attachment
+// which forces the browser to download instead of previewing. To avoid
+// that, fetch a blob and create an object URL for in-page previews on
+// mobile devices. Returns the original URL when not needed or on failure.
+async function makePreviewSrc(url) {
+  if (!url) return null;
+  if (!__isMobileDevice) return url;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    return blobUrl;
+  } catch (e) {
+    console.warn('makePreviewSrc failed, falling back to original URL', e);
+    return url;
+  }
+}
+
 function escapeHtml(s) {
   return String(s ?? "")
     .replaceAll("&", "&amp;")
@@ -210,7 +229,7 @@ function createLinkifiedProse(text) {
 
 // Lightweight modal viewer for images and PDFs
 let __fileModal = null;
-function showFileModal(url, mime, opener) {
+async function showFileModal(url, mime, opener) {
   try {
     // If already open, replace content
     if (!__fileModal) {
@@ -249,7 +268,13 @@ function showFileModal(url, mime, opener) {
     content.innerHTML = '';
     if (mime && mime.startsWith('image/')) {
       const img = document.createElement('img');
-      img.src = url;
+      try {
+        const src = await makePreviewSrc(url);
+        img.src = src || url;
+        if (src && String(src).startsWith('blob:')) img.__blobUrl = src;
+      } catch (e) {
+        img.src = url;
+      }
       img.alt = opener?.textContent || '';
       img.className = 'file-modal-image';
       content.appendChild(img);
@@ -275,9 +300,16 @@ function showFileModal(url, mime, opener) {
       audio.setAttribute('aria-label', 'Audio preview');
       content.appendChild(audio);
       try { observeMediaPlayback(audio); audio.play && audio.play().catch(() => {}); } catch (e) {}
-    } else if (mime === 'application/pdf') {
+    }
+    else if (mime === 'application/pdf') {
       const iframe = document.createElement('iframe');
-      iframe.src = url;
+      try {
+        const src = await makePreviewSrc(url);
+        iframe.src = src || url;
+        if (src && String(src).startsWith('blob:')) iframe.__blobUrl = src;
+      } catch (e) {
+        iframe.src = url;
+      }
       iframe.className = 'file-modal-iframe';
       iframe.setAttribute('aria-label', 'PDF preview');
       content.appendChild(iframe);
@@ -313,6 +345,21 @@ function closeFileModal() {
       const medias = __fileModal.content.querySelectorAll && __fileModal.content.querySelectorAll('video,audio');
       if (medias && medias.length) {
         medias.forEach(m => { try { m.pause && m.pause(); } catch (e) {} });
+      }
+    } catch (ee) {}
+    // Revoke any blob URLs created for modal content
+    try {
+      const elems = __fileModal.content.querySelectorAll && __fileModal.content.querySelectorAll('img,iframe,video,audio');
+      if (elems && elems.length) {
+        elems.forEach(el => {
+          try {
+            if (el.__blobUrl) {
+              URL.revokeObjectURL(el.__blobUrl);
+              try { if ('src' in el) el.src = ''; } catch (e) {}
+              delete el.__blobUrl;
+            }
+          } catch (e) {}
+        });
       }
     } catch (ee) {}
     __fileModal.overlay.remove();
@@ -645,6 +692,14 @@ async function renderFiles(postId) {
               try { targetEl.pause && targetEl.pause(); } catch (e) {}
             }
           } catch (ee) {}
+          // If we created a blob URL for this element, revoke it now
+          try {
+            if (targetEl && targetEl.__blobUrl) {
+              try { URL.revokeObjectURL(targetEl.__blobUrl); } catch (e) {}
+              try { if ('src' in targetEl) targetEl.src = ''; } catch (e) {}
+              delete targetEl.__blobUrl;
+            }
+          } catch (e) {}
           targetEl.style.display = "none";
           btn.textContent = hideText;
         }
@@ -685,7 +740,11 @@ async function renderFiles(postId) {
       try {
         if (mime.startsWith('image/')) {
           const img = document.createElement('img');
-          img.src = url;
+          try {
+            const src = await makePreviewSrc(url);
+            img.src = src || '';
+            if (src && String(src).startsWith('blob:')) img.__blobUrl = src;
+          } catch (e) {}
           img.alt = f.original_name || '';
           img.style.maxWidth = '100%';
           img.style.borderRadius = '6px';
@@ -697,7 +756,8 @@ async function renderFiles(postId) {
           // Try to render first page with pdfjs if available
           if (window.pdfjsLib) {
             try {
-              const loadingTask = window.pdfjsLib.getDocument(url);
+              const docUrl = await makePreviewSrc(url);
+              const loadingTask = window.pdfjsLib.getDocument(docUrl);
               const pdf = await loadingTask.promise;
               const page = await pdf.getPage(1);
               const viewport = page.getViewport({ scale: 1 });
@@ -716,18 +776,37 @@ async function renderFiles(postId) {
               previewWrap.appendChild(canvas);
             } catch (e) {
               // fallback to iframe if pdfjs render fails
-              const iframe = document.createElement('iframe');
-              iframe.src = url;
-              iframe.className = 'file-modal-iframe';
-              iframe.style.width = '100%';
-              iframe.style.height = '480px';
-              iframe.__startVisible = true;
-              previewWrap.appendChild(makeToggle(iframe, 'Hide preview', 'Show preview'));
-              previewWrap.appendChild(iframe);
+              try {
+                const iframe = document.createElement('iframe');
+                const src = await makePreviewSrc(url);
+                iframe.src = src || url;
+                if (src && String(src).startsWith('blob:')) iframe.__blobUrl = src;
+                iframe.className = 'file-modal-iframe';
+                iframe.style.width = '100%';
+                iframe.style.height = '480px';
+                iframe.__startVisible = true;
+                previewWrap.appendChild(makeToggle(iframe, 'Hide preview', 'Show preview'));
+                previewWrap.appendChild(iframe);
+              } catch (ee) {
+                const iframe = document.createElement('iframe');
+                iframe.src = url;
+                iframe.className = 'file-modal-iframe';
+                iframe.style.width = '100%';
+                iframe.style.height = '480px';
+                iframe.__startVisible = true;
+                previewWrap.appendChild(makeToggle(iframe, 'Hide preview', 'Show preview'));
+                previewWrap.appendChild(iframe);
+              }
             }
           } else {
             const iframe = document.createElement('iframe');
-            iframe.src = url;
+            try {
+              const src = await makePreviewSrc(url);
+              iframe.src = src || url;
+              if (src && String(src).startsWith('blob:')) iframe.__blobUrl = src;
+            } catch (e) {
+              iframe.src = url;
+            }
             iframe.className = 'file-modal-iframe';
             iframe.style.width = '100%';
             iframe.style.height = '480px';
